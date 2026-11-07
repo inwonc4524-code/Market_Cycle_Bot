@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>주식시장 이어달리기 봇</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#FFF9EF; --card:#FFFFFF; --ink:#2B2A33; --muted:#6E6B78; --line:#ECE4D6;
+  --accent:#FF7A45; --accent2:#3B82F6;
+  --semi:#6C5CE7; --bio:#10B981; --energy:#F59E0B; --gold:#D4A017; --fin:#0EA5E9;
+  --ind:#64748B; --cons:#EC4899; --tech:#8B5CF6; --winter:#94A3B8; --mix:#14B8A6;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo",sans-serif;-webkit-text-size-adjust:100%}
+.wrap{max-width:860px;margin:0 auto;padding:16px 14px 40px}
+h1,h2,h3,.jua{font-family:"Jua","Noto Sans KR",sans-serif;font-weight:400;letter-spacing:-.2px}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.logo{width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#FFB86B,#FF7A45);display:grid;place-items:center;font-size:24px;flex:none}
+.top h1{font-size:24px;margin:0;line-height:1.15}
+.badge{display:inline-block;font-size:11px;background:#FFE6D6;color:#C2410C;padding:2px 8px;border-radius:99px;margin-left:4px;vertical-align:middle;font-family:"Noto Sans KR";font-weight:700}
+.sub{color:var(--muted);font-size:14px;margin:2px 0 14px}
+
+.notif{background:#1F2430;color:#fff;border-radius:18px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start;box-shadow:0 6px 18px rgba(0,0,0,.12);margin-bottom:16px}
+.notif .ic{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#FFB86B,#FF7A45);display:grid;place-items:center;font-size:18px;flex:none}
+.notif .t{font-size:12px;opacity:.7;display:flex;justify-content:space-between}
+.notif .m{font-size:14px;line-height:1.45;margin-top:2px}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px;margin-bottom:14px}
+.explain{display:flex;gap:12px;align-items:center}
+.explain .big{font-size:40px;flex:none}
+.explain p{margin:0;font-size:15px;line-height:1.6}
+.explain b{color:var(--accent)}
+
+.tabs{display:flex;gap:6px;background:#F3EBDD;padding:5px;border-radius:16px;margin-bottom:10px}
+.tab{flex:1;border:0;background:transparent;padding:10px 4px;border-radius:12px;font-size:15px;font-family:"Jua",sans-serif;color:var(--muted);cursor:pointer}
+.tab.on{background:#fff;color:var(--ink);box-shadow:0 2px 6px rgba(0,0,0,.08)}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1.5px solid var(--line);background:#fff;padding:7px 13px;border-radius:99px;font-size:14px;cursor:pointer;color:var(--ink);font-family:inherit}
+.chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.lbl{font-size:13px;color:var(--muted);margin:0 0 6px 2px}
+
+.ribbon-title{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.ribbon-title h2{font-size:19px;margin:0}
+.ribbon-title span{font-size:12px;color:var(--muted)}
+.lane{margin-bottom:12px}
+.lane-name{font-size:13px;font-weight:700;margin:0 0 5px 2px}
+.scroller{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+.scroller-inner{position:relative}
+.swipe{font-size:12px;color:var(--muted);margin:0 0 8px 2px}
+.lane-name{position:sticky;left:0;display:inline-block;background:var(--card);padding-right:6px}
+.track{position:relative;height:78px;background:#F7F2E9;border-radius:12px;overflow:hidden}
+.seg{position:absolute;top:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:20px;color:#fff;border-right:2px solid #F7F2E9;cursor:pointer;transition:filter .15s;padding:0 3px;overflow:hidden}
+.seg .nm{font-size:11px;line-height:1.15;font-weight:700;text-align:center;word-break:keep-all;text-shadow:0 1px 2px rgba(0,0,0,.3);max-width:100%;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.seg:hover,.seg.hi{filter:brightness(1.12) saturate(1.1)}
+.seg.hi{outline:3px solid var(--ink);outline-offset:-3px;z-index:2}
+.seg .em{filter:drop-shadow(0 1px 1px rgba(0,0,0,.25))}
+.axis{position:relative;height:16px;margin-top:3px}
+.axis span{position:absolute;font-size:11px;color:var(--muted);transform:translateX(-50%);white-space:nowrap}
+.legend{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.legend span{font-size:12px;color:var(--muted)}
+
+.relay{display:flex;flex-direction:column;gap:0}
+.era{display:grid;grid-template-columns:54px 1fr;gap:12px;position:relative;padding-bottom:16px}
+.era:not(:last-child)::after{content:"";position:absolute;left:26px;top:56px;bottom:0;width:3px;background:repeating-linear-gradient(to bottom,#D9CFBE 0 6px,transparent 6px 11px)}
+.era .dot{width:54px;height:54px;border-radius:18px;display:grid;place-items:center;font-size:28px;color:#fff;box-shadow:0 3px 8px rgba(0,0,0,.1)}
+.era .body{background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px 14px;transition:box-shadow .2s,border-color .2s}
+.era.hi .body{border-color:var(--ink);box-shadow:0 4px 14px rgba(0,0,0,.08)}
+.era .when{font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.tag{font-size:11px;padding:1px 8px;border-radius:99px;color:#fff;font-weight:700}
+.live{font-size:11px;padding:1px 8px;border-radius:99px;background:#FEE2E2;color:#B91C1C;font-weight:700}
+.era h3{font-size:19px;margin:3px 0 6px}
+.era .why{font-size:14.5px;line-height:1.6;margin:0}
+.era .end{font-size:13.5px;line-height:1.55;margin:8px 0 0;padding:8px 10px;background:#F8F5EF;border-radius:10px;color:#4A4752}
+.era .baton{font-size:13px;margin-top:8px;color:var(--muted)}
+.era .baton b{color:var(--ink)}
+
+.cmp{width:100%;border-collapse:separate;border-spacing:0;font-size:14px}
+.cmp th{font-family:"Jua",sans-serif;font-weight:400;font-size:15px;text-align:left;padding:8px;border-bottom:2px solid var(--line);background:#FBF7F0;position:sticky;top:0}
+.cmp td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.45}
+.cmp td:first-child{white-space:nowrap;color:var(--muted);font-size:13px}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:99px;color:#fff;font-size:13px;font-weight:700;margin:1px 0}
+
+.lessons{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.lesson{background:#FFF4E5;border-radius:16px;padding:14px}
+.lesson .n{font-size:26px}
+.lesson h4{font-family:"Jua",sans-serif;font-weight:400;font-size:17px;margin:4px 0 4px}
+.lesson p{margin:0;font-size:14px;line-height:1.55}
+.comeback{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.cb{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:6px 10px;font-size:13px}
+.cb .cnt{font-family:"Jua",sans-serif;font-size:16px;color:var(--accent)}
+
+.foot{font-size:12px;color:var(--muted);line-height:1.6;margin-top:6px}
+.foot a{color:var(--muted)}
+.empty{color:var(--muted);font-size:14px;padding:6px 2px}
+@media (max-width:420px){ .era{grid-template-columns:44px 1fr;gap:10px} .era .dot{width:44px;height:44px;font-size:22px;border-radius:14px} .era:not(:last-child)::after{left:21px;top:46px} .top h1{font-size:21px} }
+
+.tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.cmp.wide{min-width:900px}
+.cmp small{color:var(--muted);font-size:11px}
+.cmp tr.go{cursor:pointer}
+.cmp tr.go:hover td{background:#FFF8EE}
+.chg{display:inline-block;font-family:"Jua",sans-serif;font-size:15px;padding:2px 9px;border-radius:99px;white-space:nowrap}
+.chg.up{background:#FEE2E2;color:#DC2626}.chg.down{background:#DBEAFE;color:#2563EB}.chg.flat{background:#F1F5F9;color:#475569}
+.chg.big{font-size:22px;padding:6px 14px}
+.scorebox{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#FBF7F0;border-radius:16px;padding:12px 14px;margin-bottom:12px}
+.scorebox .idx{font-family:"Jua",sans-serif;font-size:18px}
+.scorebox .line{font-size:13px;color:var(--muted);margin-top:2px}
+.story{border-radius:16px;padding:12px 14px;margin-bottom:10px}
+.story h4,.timeline h4,.sumcol h4{font-family:"Jua",sans-serif;font-weight:400;font-size:16px;margin:0 0 6px}
+.story b{font-size:15.5px}
+.story p{margin:6px 0 0;font-size:14.5px;line-height:1.65}
+.story.hero{background:#FFF4E5}.story.winter{background:#EEF2F7}.story.newbie{background:#ECFDF5}
+.timeline{margin-top:6px}
+.ev{display:grid;grid-template-columns:88px 1fr;gap:8px;padding:7px 0;border-bottom:1px dashed var(--line)}
+.ev span{font-size:12.5px;color:var(--muted);font-weight:700}
+.ev p{margin:0;font-size:14px;line-height:1.5}
+.sumblock{margin-bottom:12px}
+.sumflag{font-size:17px;margin:4px 0 6px}
+.sumgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+.sumcol{border-radius:16px;padding:12px}
+.sumcol.hero{background:#FFF4E5}.sumcol.winter{background:#EEF2F7}.sumcol.newbie{background:#ECFDF5}
+.sumcol small{font-family:"Noto Sans KR";font-size:12px;color:var(--muted);margin-left:4px}
+.si{padding:6px 0;border-bottom:1px dashed rgba(0,0,0,.08)}
+.si:last-child{border-bottom:0}
+.si b{font-size:14px;display:block}
+.si span{font-size:12px;color:var(--muted)}
+.si p{margin:4px 0 0;font-size:13.5px;line-height:1.55}
+.nowbox{margin-top:8px;background:#fff;border-radius:12px;padding:8px 10px;font-size:13.5px;line-height:1.55}
+.gl{padding:8px 0;border-bottom:1px dashed var(--line)}
+.gl b{font-size:14.5px}.gl p{margin:3px 0 0;font-size:14px;line-height:1.55;color:#4A4752}
+
+.calcbox{border:2px solid #C7D2FE;background:#F5F7FF;border-radius:18px;padding:12px 14px;margin-bottom:14px}
+.calchead{font-family:"Jua",sans-serif;font-size:17px;margin-bottom:8px}
+.calchead small{font-family:"Noto Sans KR";font-size:11.5px;color:var(--muted);margin-left:4px}
+.calcbox .scorebox{background:#fff}
+.ct{margin:6px 0;font-size:14.5px;line-height:1.6}
+.sub4{font-family:"Jua",sans-serif;font-weight:400;font-size:16px;margin:12px 0 6px}
+.storyhead{font-family:"Jua",sans-serif;font-weight:400;font-size:16px;margin:4px 0 10px;color:var(--muted)}
+.storyhead small{font-family:"Noto Sans KR";font-size:12px}
+.bars{display:flex;flex-direction:column;gap:5px}
+.bar{display:grid;grid-template-columns:minmax(120px,42%) 1fr 62px;gap:8px;align-items:center;font-size:13px}
+.bn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bt{height:12px;background:#EEF0F4;border-radius:6px;overflow:hidden}
+.bt i{display:block;height:100%;border-radius:6px}
+.bt i.up{background:#F87171}.bt i.down{background:#60A5FA}
+.bv{text-align:right;font-weight:700}.bv.up{color:#DC2626}.bv.down{color:#2563EB}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="logo">🏃</div>
+    <div><h1>주식시장 이어달리기 봇 <span class="badge">매일 업데이트</span></h1></div>
+  </div>
+  <p class="sub">🤖 표시가 있는 나라는 업종 가격으로 매일 자동 계산해요. 한국·미국·일본·중국·홍콩·대만·싱가포르 주식시장의 '주인공 업종'이 어떻게 바뀌어 왔는지 한눈에 봐요</p>
+
+  <div class="notif" aria-label="휴대폰 알림 예시">
+    <div class="ic">🏃</div>
+    <div style="flex:1">
+      <div class="t"><span>이어달리기 봇 · 휴대폰 알림 예시</span><span>오전 8:00</span></div>
+      <div class="m" id="notifText">—</div>
+    </div>
+  </div>
+
+  <div class="card explain">
+    <div class="big">🏃‍♀️🔁🏃</div>
+    <p>주식시장은 <b>이어달리기</b>예요. 한 업종이 <b>바통</b>을 들고 몇 년 동안 신나게 달리다가, 너무 비싸지거나 세상이 바뀌면 <b>다음 업종에게 바통</b>을 넘겨줘요. 달리기가 멈추고 다 같이 쉬는 때는 <b>겨울(위기)</b>이라고 불러요.</p>
+  </div>
+
+  <p class="lbl">어느 나라를 볼까요?</p>
+  <div class="chips" id="tabs"></div>
+  <p class="lbl" id="perLbl"></p>
+  <div class="chips" id="chips"></div>
+
+  <div class="card short">
+    <div class="ribbon-title"><h2 id="recentTitle">최근 이야기</h2><span>2026년 11월 6일(금) 마감 기준</span></div>
+    <div id="recent"></div>
+  </div>
+
+  <div class="card long">
+    <div class="ribbon-title"><h2 id="ribbonTitle">바통 지도</h2><span>칸을 누르면 설명으로 가요</span></div>
+    <div id="lanes"></div>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <div class="card long" id="calcCard" style="display:none">
+    <div class="ribbon-title"><h2>🤖 데이터로 계산한 업종 성적</h2><span id="calcAsof"></span></div>
+    <div id="calcLong"></div>
+  </div>
+
+  <div class="card long">
+    <div class="ribbon-title"><h2>📖 이 기간 한눈에</h2><span id="sumRange"></span></div>
+    <div id="summary"></div>
+  </div>
+
+  <div class="card long" id="relayCard">
+    <div class="ribbon-title"><h2 id="relayTitle">누가 바통을 들었을까?</h2><span id="relayCount"></span></div>
+    <div id="relay" class="relay"></div>
+  </div>
+
+  <div class="card long">
+    <div class="ribbon-title"><h2>🔎 여기서 찾은 규칙</h2><span id="ruleRange"></span></div>
+    <div class="lessons" id="lessons"></div>
+    <p class="lbl" style="margin-top:14px">🔁 다시 돌아온 주인공 (이 기간에 몇 번 바통을 잡았나)</p>
+    <div class="comeback" id="comeback"></div>
+  </div>
+
+  <div class="card">
+    <div class="ribbon-title"><h2>📚 어려운 말 풀이</h2></div>
+    <div id="gloss"></div>
+  </div>
+
+  <p class="foot">
+    ⚠️ 이 화면은 공부용 미리보기예요. 투자 추천이 아니고, 지나간 흐름이 앞으로도 똑같이 반복된다는 보장은 없어요.<br>
+    기간 구분과 '주인공 업종'은 당시 시장을 이끈 업종을 쉽게 묶은 것이라 사람마다 다르게 볼 수 있고, 오래전 날짜·숫자는 대략값이에요. 1일·1주일·1달·6개월 이야기와 2024~2026년 내용은 거래소 발표와 언론 보도를 참고했어요(2026년 11월 6일 금요일 마감 기준). 🤖 표시가 있는 부분은 업종 ETF 가격(야후 파이낸스)으로 매일 자동 계산해요. 업종 ETF가 생긴 뒤의 기간만 계산할 수 있어서, 그보다 오래된 흐름은 정리한 역사 이야기로 보여줘요.<br>
+    한국은 1956년, 대만은 1962년, 지금의 중국 상하이 거래소는 1990년에 문을 열어(싱가포르는 1973년 말레이시아와 시장을 나눠 따로 거래소를 열었어요) 그 전은 '시장이 없던 시절'로 표시했어요. 금값은 1971년까지 나라가 정해둔 고정 가격이었어요.
+  </p>
+</div>
+<script>
+(function(){
+  const NOW = (()=>{const d=new Date(); return Math.max(2026.85, d.getFullYear()+(d.getMonth()+0.5)/12);})(); // 2026년 11월 초
+  const CAT = {
+    semi:{n:"반도체",c:"var(--semi)"}, tech:{n:"기술·인터넷",c:"var(--tech)"}, bio:{n:"바이오·소비",c:"var(--bio)"},
+    energy:{n:"에너지·원자재",c:"var(--energy)"}, gold:{n:"금",c:"var(--gold)"}, fin:{n:"금융",c:"var(--fin)"},
+    ind:{n:"산업(조선·건설·기계·방위산업)",c:"var(--ind)"}, cons:{n:"소비재",c:"var(--cons)"}, winter:{n:"겨울(위기)",c:"var(--winter)"},
+    mix:{n:"여러 업종이 나눠 뜀",c:"var(--mix)"},
+    none:{n:"시장이 없거나 아주 작던 때",c:"#C9C1B3"}, fixed:{n:"값이 묶여 있던 때",c:"#BFA76A"}
+  };
+
+  // s, e : 연도(소수점 = 달). live: 진행 중
+  const KR = [
+    {s:1976,e:1978.9,cat:"ind",em:"🏗️",name:"건설",when:"1976~1978",
+     why:"한국 건설회사들이 사막 나라(중동)에 가서 길과 건물을 지어 큰돈을 벌었어요. 건설 주식이 첫 번째 주인공!",
+     end:"너무 비싸진 뒤 1978년에 와르르 무너졌어요(건설주 파동). 그 뒤 오일쇼크까지 겹쳤어요.",next:"쉬는 시간"},
+    {s:1979,e:1985.9,cat:"winter",em:"💤",name:"긴 쉬는 시간",when:"1979~1985",
+     why:"기름값이 크게 오르고 나라 안이 시끄러워서 주식시장이 오랫동안 기운이 없었어요. 뚜렷한 주인공이 없던 때예요.",
+     end:"1986년, 기름값·이자·달러값이 한꺼번에 싸지는 '3저' 행운이 찾아왔어요.",next:"트로이카"},
+    {s:1986,e:1989.3,cat:"fin",em:"🏦",name:"금융·건설·무역 (트로이카)",when:"1986~1989",
+     why:"'3저' 덕분에 수출이 엄청 잘 됐어요. 은행·증권·건설·무역 회사 세 무리가 마차를 끌듯 시장을 끌어올렸어요(트로이카).",
+     end:"코스피가 처음 1,000을 넘은 뒤(1989년) 거품이 꺼져 3년 넘게 내려갔어요.",next:"대표 우량 기업"},
+    {s:1989.3,e:1992.6,cat:"winter",em:"🫧",name:"거품 빠지는 겨울",when:"1989~1992",
+     why:"너무 빨리 오른 만큼 실망도 컸어요. 지수가 절반 넘게 내려갔어요.",
+     end:"1992년, 외국인도 한국 주식을 살 수 있게 문이 열렸어요.",next:"대표 우량 기업"},
+    {s:1992.6,e:1994.9,cat:"semi",em:"💎",name:"값싼 알짜 회사 → 대표 우량 기업 (삼성전자 등)",when:"1992~1994",
+     why:"외국인들이 '돈은 잘 버는데 값이 싼 회사'를 먼저 샀고, 다음엔 삼성전자·포철·한전 같은 대표 회사(블루칩)를 샀어요.",
+     end:"1997년 나라에 달러가 바닥나는 IMF 외환위기가 왔어요.",next:"외환위기"},
+    {s:1995,e:1998.5,cat:"winter",em:"❄️",name:"외환위기",when:"1995~1998",
+     why:"큰 회사와 은행들이 줄줄이 쓰러졌어요. 1994년 1,100이 넘던 코스피가 1998년 300 아래로… 100원이 25원이 된 셈이에요.",
+     end:"위기가 끝나갈 즈음 '인터넷'이라는 새 세상이 열렸어요.",next:"인터넷·벤처 기업"},
+    {s:1998.5,e:2000.2,cat:"tech",em:"💻",name:"정보기술·인터넷 벤처 기업",when:"1999~2000",
+     why:"인터넷이 처음 퍼지면서 이름에 '닷컴', '테크'만 붙어도 주가가 몇십 배 올랐어요(코스닥 열풍).",
+     end:"돈을 못 버는 회사가 많다는 걸 알게 되자 거품이 '펑' 터졌어요. 2000년에 반토막.",next:"중국 관련주"},
+    {s:2000.2,e:2003.2,cat:"winter",em:"🌧️",name:"거품 붕괴·카드대란",when:"2000~2003",
+     why:"닷컴 거품이 터지고, 9·11 테러, 신용카드 빚 문제(카드대란)까지 겹쳐 힘든 시기였어요.",
+     end:"이웃 나라 중국이 무서운 속도로 크기 시작했어요.",next:"조선·철강·기계"},
+    {s:2003.2,e:2007.9,cat:"ind",em:"🚢",name:"조선·철강·기계 (중국 관련주)",when:"2003~2007",
+     why:"중국이 공장과 도시를 엄청 지으면서 배·철·기계가 많이 필요했어요. 펀드 열풍으로 코스피가 처음 2,000을 넘었어요.",
+     end:"2008년 미국에서 시작된 금융위기로 세계 주식시장이 무너졌어요.",next:"금융위기"},
+    {s:2007.9,e:2008.9,cat:"winter",em:"⛈️",name:"글로벌 금융위기",when:"2008",
+     why:"미국 은행들이 휘청이자 전 세계가 겁을 먹었어요. 코스피가 1년 만에 절반 넘게 빠졌어요.",
+     end:"위기 뒤 달러가 비싸지자 한국 수출품이 싸져서 잘 팔리기 시작했어요.",next:"자동차·화학·정유"},
+    {s:2008.9,e:2011.6,cat:"energy",em:"🚗",name:"자동차·화학·정유",when:"2009~2011",
+     why:"한국 자동차가 세계에서 잘 팔리고, 중국 덕분에 화학·정유 회사도 돈을 많이 벌었어요.",
+     end:"2011년 유럽 나라들의 빚 걱정이 터지며 바통을 놓쳤어요.",next:"화장품·바이오·제약"},
+    {s:2011.6,e:2016.6,cat:"bio",em:"💄",name:"화장품·바이오·제약",when:"2012~2016",
+     why:"중국 관광객이 한국 화장품을 엄청 샀고, 2015년엔 한국 제약회사의 큰 신약 수출 소식에 바이오가 날았어요. 그동안 코스피는 오랫동안 제자리(박스피)였어요.",
+     end:"2016~2017년 사드 갈등으로 중국 손님이 뚝 끊겼어요.",next:"반도체"},
+    {s:2016.6,e:2018.5,cat:"semi",em:"🧠",name:"반도체 (1번째 큰 호황)",when:"2017~2018",
+     why:"스마트폰과 인터넷 서버에 메모리 칩이 모자랄 만큼 필요해서 삼성전자·SK하이닉스가 역대 최고 돈을 벌었어요.",
+     end:"메모리값이 떨어지고 미국-중국 무역 싸움이 시작됐어요. 2020년 초엔 코로나까지.",next:"바이오·배터리·인터넷·게임"},
+    {s:2018.5,e:2020.2,cat:"winter",em:"🌫️",name:"무역분쟁·코로나 충격",when:"2018~2020 초",
+     why:"미국과 중국이 서로 세금을 매기며 싸웠고, 2020년 3월 코로나로 코스피가 1,400대까지 떨어졌어요.",
+     end:"사람들이 집에 머물자 새로운 업종들이 떴어요.",next:"바이오·배터리·인터넷·게임"},
+    {s:2020.2,e:2021.6,cat:"bio",em:"🧪",name:"바이오·배터리·인터넷·게임",when:"2020~2021",
+     why:"코로나 진단키트와 백신(바이오), 전기차 배터리, 집에서 쓰는 인터넷·게임이 인기였어요. '동학개미'가 주식을 많이 샀어요.",
+     end:"2021년 하반기부터 물가와 금리가 오르며 미래 기대주들이 내려왔어요.",next:"전기차 배터리"},
+    {s:2021.6,e:2023.9,cat:"energy",em:"🔋",name:"전기차 배터리 (2차전지)",when:"2022~2023",
+     why:"전기차 배터리와 소재 회사들이 주인공이었어요. 몇 배씩 오른 종목도 있었어요.",
+     end:"전기차 판매가 생각보다 느려지자 2024년 2차전지는 최악의 해를 보냈어요.",next:"조선·방위산업·원자력발전·전력기기"},
+    {s:2023.9,e:2025.3,cat:"ind",em:"⚓",name:"조선·방위산업·원자력발전·전력기기",when:"2024~2025",
+     why:"전쟁으로 무기 수요가 늘고, 배 주문이 쏟아지고, AI 데이터센터에 전기가 많이 필요해져 전력기기 회사가 크게 올랐어요.",
+     end:"조선·방위산업·원자력발전·전력기기는 계속 잘 달렸지만, 2025년엔 인공지능 반도체가 훨씬 빨리 뛰어나갔어요.",next:"인공지능 반도체"},
+    {s:2025.3,e:2026.5,cat:"semi",em:"🤖",name:"인공지능(AI) 반도체 (2번째 큰 호황)",when:"2025~2026 상반기",
+     why:"AI용 메모리(HBM)가 날개 돋친 듯 팔렸어요. 코스피가 2025년 한 해 76%, 2026년 상반기에 또 두 배로 올랐어요.",
+     end:"2026년 7월 반도체 주가가 크게 흔들렸고, 관심이 다른 업종으로 퍼지기 시작했어요.",next:"여러 업종"},
+    {s:2026.5,e:NOW,cat:"mix",em:"🔀",name:"여러 업종이 나눠 뛰는 중",when:"2026 하반기~지금",live:true,
+     why:"반도체 혼자 달리던 데서, 전력기기·조선·방산, 그리고 덜 올랐던 바이오·화장품·금융으로 관심이 나뉘고 있어요.",
+     end:"다음 주인공은 아직 '오디션 중'이에요. 봇이 매일 확인해서 알려줄 거예요.",next:"?"}
+  ];
+
+  const US = [
+    {s:1976,e:1981,cat:"energy",em:"🛢️",name:"에너지·원자재 (석유)",when:"1976~1980",
+     why:"기름값과 물가가 하늘 높이 올랐어요. 석유회사가 미국 주식시장에서 가장 잘나가는 주인공이었어요. 금값도 1980년 850달러까지!",
+     end:"미국 중앙은행이 이자를 엄청 올려서 물가를 잡자, 기름과 금의 거품이 꺼졌어요.",next:"소비재"},
+    {s:1981,e:1982.6,cat:"winter",em:"❄️",name:"높은 이자의 겨울",when:"1981~1982",
+     why:"은행 이자가 너무 높아서 사람들이 주식 대신 저금을 했어요.",
+     end:"물가가 잡히고 이자가 내려가기 시작했어요.",next:"소비재"},
+    {s:1982.6,e:1990.6,cat:"cons",em:"🥤",name:"소비재·제약·회사 사고팔기",when:"1982~1990",
+     why:"물가가 안정되자 콜라·과자·약 회사처럼 매일 쓰는 물건을 파는 회사가 꾸준히 올랐어요. 회사를 사고파는(M&A) 붐도 있었어요.",
+     end:"1987년엔 하루에 20% 넘게 빠진 '블랙 먼데이'도 있었고, 1990년 걸프 전쟁으로 바통을 넘겼어요.",next:"기술·인터넷"},
+    {s:1990.6,e:2000.2,cat:"tech",em:"💻",name:"기술·통신·인터넷",when:"1991~2000",
+     why:"집집마다 컴퓨터가 생기고 인터넷이 퍼지면서 마이크로소프트·인텔·시스코 같은 기술 회사가 10년 동안 주인공이었어요.",
+     end:"2000년 닷컴 거품이 터져 나스닥이 약 78% 떨어졌어요.",next:"튼튼한 회사"},
+    {s:2000.2,e:2003,cat:"winter",em:"🛡️",name:"거품 붕괴 → 튼튼한 회사로 피난",when:"2000~2002",
+     why:"비싼 기술주를 팔고, 값싸고 튼튼한 회사(은행·전기·생활용품)로 피난을 갔어요.",
+     end:"중국이 크게 성장하며 원자재가 필요해졌어요.",next:"에너지·원자재"},
+    {s:2003,e:2008.5,cat:"energy",em:"⛽",name:"에너지·원자재·신흥국",when:"2003~2008",
+     why:"중국·인도가 빠르게 크면서 기름·철·구리가 엄청 필요했어요. 2008년 기름값이 1배럴 147달러까지 올랐어요.",
+     end:"2008년 집값 거품이 터지며 금융위기가 왔어요.",next:"금"},
+    {s:2008.5,e:2011.7,cat:"gold",em:"🪙",name:"금 (안전한 피난처)",when:"2008~2011",
+     why:"은행이 무너질까 겁먹은 사람들이 금으로 피난했어요. 2011년 금값이 1온스 1,900달러를 넘었어요.",
+     end:"경제가 회복되자 금은 내려오고, 스마트폰 시대가 열렸어요.",next:"거대 기술기업"},
+    {s:2011.7,e:2020.2,cat:"tech",em:"📱",name:"거대 기술기업 (페이스북·애플·아마존·넷플릭스·구글)",when:"2012~2020",
+     why:"페이스북·애플·아마존·넷플릭스·구글. 스마트폰과 앱이 세상을 바꾸면서 이 회사들이 오랫동안 주인공이었어요.",
+     end:"2020년 3월 코로나로 한 달 만에 30% 넘게 떨어졌어요.",next:"코로나 때 뜬 성장 기업"},
+    {s:2020.2,e:2021.9,cat:"bio",em:"🏠",name:"코로나 때 뜬 성장 기업 (백신·원격근무·전기차)",when:"2020~2021",
+     why:"집에서 일하고 공부하며 화상회의·온라인쇼핑·백신·전기차 회사가 크게 올랐어요.",
+     end:"2022년 물가가 치솟아 이자가 빠르게 오르자 비싼 성장주가 크게 떨어졌어요.",next:"에너지"},
+    {s:2021.9,e:2022.9,cat:"energy",em:"🛢️",name:"에너지 (다시 돌아옴!)",when:"2022",
+     why:"전쟁으로 기름값이 치솟았어요. 시장 전체는 20% 가까이 떨어졌는데 에너지 주식만 60% 가까이 올랐어요.",
+     end:"챗GPT가 등장하면서 세상의 관심이 AI로 쏠렸어요.",next:"인공지능 반도체"},
+    {s:2022.9,e:2025.6,cat:"semi",em:"🤖",name:"인공지능(AI) 반도체·거대 기술기업 7곳",when:"2023~2025",
+     why:"AI를 돌리는 칩을 만드는 엔비디아가 세계에서 제일 비싼 회사가 됐어요. S&P500이 3년 연속 두 자릿수로 올랐어요.",
+     end:"계속 달렸지만, 2025년 하반기부터는 금이 더 빨리 뛰기 시작했어요.",next:"금·에너지"},
+    {s:2025.6,e:NOW,cat:"gold",em:"🪙",name:"금 + 에너지 (그리고 메모리 반도체)",when:"2025 하반기~지금",live:true,
+     why:"금이 2025년 10월 처음 4,000달러, 2026년 1월엔 5,589달러로 역대 최고! 2026년엔 중동 전쟁으로 기름값이 올라 에너지가 가장 많이 오른 업종이었어요.",
+     end:"2026년 10월부터 'AI에 돈을 너무 많이 쓴다'는 걱정에 기술주가 쉬어가는 중이에요. 다음 주자는 아직 몰라요.",next:"?"}
+  ];
+
+  const GOLD = [
+    {s:1976,e:1980.1,cat:"gold",em:"🪙",name:"금 1차 대활약",when:"1976~1980",why:"물가가 치솟자 금값이 1980년 1온스 850달러까지 올랐어요.",end:"이자가 크게 오르자 금은 20년 동안 쉬었어요.",next:""},
+    {s:1980.1,e:2001,cat:"winter",em:"😴",name:"금의 긴 잠",when:"1980~2001",why:"주식이 잘 달리는 동안 금은 300달러 아래까지 내려왔어요.",end:"",next:""},
+    {s:2001,e:2011.7,cat:"gold",em:"🪙",name:"금 2차 대활약",when:"2001~2011",why:"달러가 약해지고 금융위기가 오자 1,900달러 넘게 올랐어요.",end:"",next:""},
+    {s:2011.7,e:2019,cat:"winter",em:"😴",name:"금 쉬는 시간",when:"2012~2018",why:"경제가 회복되며 금은 다시 쉬었어요.",end:"",next:""},
+    {s:2019,e:2023.9,cat:"gold",em:"🪙",name:"금 기지개",when:"2019~2023",why:"코로나 때 2,000달러를 처음 넘었어요.",end:"",next:""},
+    {s:2023.9,e:NOW,cat:"gold",em:"🏆",name:"금 3차 대활약",when:"2024~지금",live:true,why:"세계 곳곳의 전쟁과 각국 중앙은행의 금 사재기로 2026년 1월 5,589달러, 역대 최고 기록!",end:"",next:""}
+  ];
+
+  // 바통 지도에 이모지 아래 표시할 짧은 테마 이름
+  ["건설","쉬는 시간","금융·건설·무역","거품 빠짐","대표 우량 기업","외환위기","인터넷·벤처 기업","거품 붕괴·카드 빚 위기","조선·철강·기계","금융위기","자동차·화학·정유","화장품·바이오·제약","반도체","무역 싸움·코로나","바이오·배터리·인터넷·게임","전기차 배터리","조선·방위산업·원자력발전·전력기기","인공지능 반도체","여러 업종으로 확산"].forEach((s,i)=>KR[i].short=s);
+  ["석유·원자재","높은 이자 겨울","소비재·제약","기술·통신·인터넷","튼튼한 회사로 피난","에너지·원자재·신흥국","금","거대 기술기업","코로나 때 뜬 성장 기업","에너지","인공지능 반도체·거대 기술기업","금·에너지"].forEach((s,i)=>US[i].short=s);
+  ["금 1차 활약","금의 긴 잠","금 2차 활약","금 쉬는 시간","금 기지개","금 3차 활약"].forEach((s,i)=>GOLD[i].short=s);
+
+  KR.unshift(
+    {s:1926,e:1956.2,cat:"none",em:"🏚️",short:"주식시장이 없던 시절",name:"지금 같은 주식시장이 없던 시절",when:"1926~1955",
+     why:"일제강점기, 광복, 6·25 전쟁을 겪는 동안 지금 같은 한국 주식시장은 없었어요.",
+     end:"1956년 3월, 대한증권거래소가 처음 문을 열었어요.",next:"나라 빚 증서(국채)"},
+    {s:1956.2,e:1962.4,cat:"fin",em:"📜",short:"나라 빚 증서(국채)",name:"나라 빚 증서(국채) 시장",when:"1956~1962",
+     why:"상장된 회사가 아주 적어서, 주식보다 나라가 발행한 빚 증서(국채)를 주로 사고팔았어요.",
+     end:"1962년 몇몇 사람들이 주가를 일부러 끌어올렸다가 시장이 크게 흔들렸어요(증권 파동).",next:"증권 파동"},
+    {s:1962.4,e:1963.2,cat:"winter",em:"🌪️",short:"증권 파동",name:"증권 파동",when:"1962",
+     why:"주가를 억지로 올렸다가 한꺼번에 무너져 많은 사람이 손해를 봤어요. 거래소가 한동안 문을 닫기도 했어요.",
+     end:"그 뒤 시장은 오랫동안 아주 작게 유지됐어요.",next:"회사들의 상장"},
+    {s:1963.2,e:1976,cat:"none",em:"🌱",short:"회사들이 하나둘 상장",name:"회사들이 하나둘 상장하던 시절",when:"1963~1975",
+     why:"나라가 경제개발을 하면서 1972년엔 회사들이 주식을 공개하도록 법도 만들었어요. 그래도 시장은 아직 작았어요.",
+     end:"1970년대 중반, 중동 건설 붐이 시작됐어요.",next:"건설"}
+  );
+  US.unshift(
+    {s:1926,e:1929.8,cat:"tech",em:"📻",short:"라디오·자동차·전기",name:"라디오·자동차·전기 (광란의 20년대)",when:"1926~1929",
+     why:"집집마다 라디오와 전기가 들어오고 자동차가 쏟아져 나왔어요. 라디오 회사 주가가 몇십 배 올랐어요.",
+     end:"1929년 10월 '검은 목요일', 주식시장이 와르르 무너졌어요.",next:"대공황"},
+    {s:1929.8,e:1932.5,cat:"winter",em:"🥶",short:"대공황",name:"대공황",when:"1929~1932",
+     why:"역사상 가장 큰 겨울이에요. 다우지수가 약 89% 떨어졌어요. 100원이 11원이 된 거예요! 처음 가격을 되찾는 데 25년이 걸렸어요.",
+     end:"1932년 바닥을 찍고 아주 천천히 일어났어요.",next:"흔들리는 회복"},
+    {s:1932.5,e:1942.3,cat:"winter",em:"🌫️",short:"흔들리는 회복",name:"흔들리는 회복",when:"1932~1942",
+     why:"올랐다가 1937년에 다시 크게 떨어지는 등 오락가락했어요. 뚜렷한 주인공이 없었어요.",
+     end:"2차 세계대전으로 공장들이 쉬지 않고 돌아가기 시작했어요.",next:"전쟁 물자·공장"},
+    {s:1942.3,e:1946.4,cat:"ind",em:"🏭",short:"전쟁 물자·공장",name:"전쟁 물자·공장 (2차 세계대전)",when:"1942~1946",
+     why:"비행기·배·무기를 만드느라 공장과 철강 회사가 바빴어요.",
+     end:"전쟁이 끝나자 잠깐 숨을 골랐어요.",next:"전쟁 뒤 숨고르기"},
+    {s:1946.4,e:1949.5,cat:"winter",em:"😮‍💨",short:"전쟁 뒤 숨고르기",name:"전쟁 뒤 숨고르기",when:"1946~1949",
+     why:"전쟁용 주문이 끊기고 물가가 올라 시장이 쉬어갔어요.",
+     end:"군인들이 돌아와 가정을 꾸리면서 집·차·가전이 엄청 필요해졌어요.",next:"자동차·가전·철강"},
+    {s:1949.5,e:1961.9,cat:"ind",em:"🚗",short:"자동차·가전·철강",name:"자동차·가전·철강 (전쟁 뒤 큰 호황)",when:"1949~1961",
+     why:"모든 집에 자동차·냉장고·텔레비전이 생기던 시절이에요. 자동차 회사와 철강 회사가 주인공이었어요.",
+     end:"1960년대엔 더 새롭고 빨리 크는 회사들로 관심이 옮겨갔어요.",next:"새 기술 성장 기업"},
+    {s:1961.9,e:1968.9,cat:"tech",em:"📡",short:"새 기술 성장 기업",name:"새 기술 성장 기업 (컴퓨터·복사기·카메라)",when:"1962~1968",
+     why:"컴퓨터(IBM), 복사기(제록스), 즉석카메라(폴라로이드)처럼 새 기술 회사가 빠르게 컸어요.",
+     end:"물가가 오르고 베트남 전쟁이 길어지며 1969~1970년에 크게 떨어졌어요.",next:"물가 걱정 겨울"},
+    {s:1968.9,e:1970.4,cat:"winter",em:"🌧️",short:"물가 걱정 겨울",name:"물가 걱정 겨울",when:"1969~1970",
+     why:"물가와 이자가 오르면서 비싸던 성장 기업 주가가 크게 내려왔어요.",
+     end:"사람들은 '절대 안 망할 대표 회사'만 골라 사기 시작했어요.",next:"인기 대형주 50곳"},
+    {s:1970.4,e:1973,cat:"cons",em:"🌟",short:"인기 대형주 50곳",name:"인기 대형주 50곳 (니프티 피프티)",when:"1970~1972",
+     why:"코카콜라·맥도날드·IBM 같은 유명 대형 회사 50곳을 값이 아무리 비싸도 샀어요.",
+     end:"1973년 오일쇼크로 이 회사들도 반토막 넘게 떨어졌어요.",next:"오일쇼크"},
+    {s:1973,e:1976,cat:"winter",em:"⛽",short:"오일쇼크",name:"1차 오일쇼크",when:"1973~1975",
+     why:"중동 나라들이 기름 수출을 줄이자 기름값이 몇 배로 뛰었어요. 주식시장은 거의 반토막이 났어요.",
+     end:"기름이 귀해지자 석유 회사가 다음 주인공이 됐어요.",next:"석유·원자재"}
+  );
+  Object.assign(GOLD[0],{s:1971.6,when:"1971~1980",why:"1971년 미국이 '달러를 금으로 바꿔주기'를 멈추자, 35달러에 묶여 있던 금값이 1980년 850달러까지 올랐어요."});
+  GOLD.unshift(
+    {s:1926,e:1934,cat:"fixed",em:"🔒",short:"금값 고정 (약 21달러)",name:"금값이 묶여 있던 시절",when:"1926~1933",why:"돈의 가치를 금에 묶어두는 '금본위제' 때문에 금값이 1온스 약 21달러로 정해져 있었어요.",end:"",next:""},
+    {s:1934,e:1971.6,cat:"fixed",em:"🔒",short:"금값 고정 (35달러)",name:"금값이 35달러로 묶인 시절",when:"1934~1971",why:"미국이 금값을 35달러로 올려 다시 고정했어요. 37년 동안 금값이 그대로였어요.",end:"",next:""}
+  );
+
+
+
+  // ===== 최근 흐름 반영 (2026년 11월 6일 기준) =====
+  (function(){
+    const ai=KR[KR.length-2];
+    Object.assign(ai,{e:2026.47,when:"2025~2026년 6월",end:"2026년 6월 19일 코스피가 9,385까지 오른 뒤, 7월부터 반도체 주가가 크게 흔들리기 시작했어요."});
+    KR[KR.length-1]={s:2026.47,e:NOW,cat:"winter",em:"🥶",short:"인공지능 거품 걱정 겨울",name:"인공지능 거품 걱정 겨울",when:"2026년 6월~지금",live:true,
+      why:"6월 19일 9,385였던 코스피가 11월 6일 5,060까지, 약 46% 떨어졌어요. '인공지능에 돈을 너무 많이 쓴 건 아닐까?' 하는 걱정에, 11월엔 미국 선거 뒤 데이터센터 규제 걱정까지 겹쳤어요.",
+      end:"다음 주인공 후보로 조선·방위산업·전력기기, 바이오·화장품이 거론되지만 아직 확실하지 않아요.",next:"?"};
+    US.splice(US.length-1,1,
+      {s:2025.6,e:2026.1,cat:"gold",em:"🪙",short:"금 (역대 최고)",name:"금 (역대 최고 기록)",when:"2025 하반기~2026년 1월",
+       why:"금이 2025년 10월 처음 1온스 4,000달러를 넘고, 2026년 1월 28일엔 5,589달러로 역사상 가장 비싸졌어요.",
+       end:"그 뒤 금값은 내려와 11월 초엔 약 4,050달러예요.",next:"에너지"},
+      {s:2026.1,e:NOW,cat:"energy",em:"🛢️",short:"에너지 (이란 전쟁)",name:"에너지 (이란 전쟁)",when:"2026년~지금",live:true,
+       why:"2026년 3월 미국과 이란의 전쟁이 시작돼 기름값이 크게 올랐어요. 그래서 올해 미국에서 가장 많이 오른 업종은 에너지예요. 인공지능용 메모리 회사들도 상반기에 몇 배씩 올랐어요.",
+       end:"10월 6일 최고치 뒤 '인공지능에 돈을 너무 많이 쓴다'는 걱정과 선거 충격으로 기술주가 쉬는 중이에요. 이란과의 협상 기대로 기름값도 11월 첫 주에 약 12% 내렸어요.",next:"?"});
+    Object.assign(GOLD[GOLD.length-1],{e:2026.1,live:false,when:"2024~2026년 1월"});
+    GOLD.push({s:2026.1,e:NOW,cat:"winter",em:"😮‍💨",short:"금 숨고르기",name:"금 숨고르기",when:"2026년 2월~지금",live:true,
+      why:"1월 5,589달러 최고 기록 뒤 11월 초 약 4,050달러로 약 27% 내려왔어요. 10월 30일엔 1년 중 가장 낮은 약 3,870달러까지 갔어요.",end:"",next:""});
+  })();
+
+  // ===== 일본 =====
+  const JP=[
+    {s:1926,e:1931.7,cat:"winter",em:"🌧️",short:"금융공황·대공황",name:"쇼와 금융공황·세계 대공황",when:"1926~1931",why:"1927년 은행들이 줄줄이 문을 닫는 금융공황이 오고, 1929년엔 세계 대공황까지 덮쳐 일본 경제가 크게 어려웠어요.",end:"나라가 군대와 무기에 돈을 쓰기 시작했어요.",next:"전쟁 물자"},
+    {s:1931.7,e:1945.6,cat:"ind",em:"🏭",short:"전쟁 물자·재벌 회사",name:"전쟁 물자·재벌 회사",when:"1931~1945",why:"미쓰이·미쓰비시 같은 큰 회사 무리(재벌)가 무기·배·철을 만들었어요. 하지만 나라가 시장을 꽉 쥐고 있었어요.",end:"1945년 전쟁에서 지면서 모든 게 멈췄어요.",next:"거래소 휴장"},
+    {s:1945.6,e:1949.4,cat:"none",em:"🚧",short:"거래소 문 닫음",name:"주식거래소 문 닫음",when:"1945~1949",why:"전쟁에 진 뒤 도쿄 증권거래소가 약 4년 동안 문을 닫았어요.",end:"1949년 5월 거래소가 다시 열렸어요.",next:"철강·조선·화학"},
+    {s:1949.4,e:1960,cat:"ind",em:"🚢",short:"철강·조선·화학",name:"철강·조선·화학 (다시 일어서기)",when:"1949~1959",why:"무너진 나라를 다시 짓느라 철·배·화학제품이 많이 필요했어요. 1950년 한국전쟁 때 물건 주문도 많이 들어왔어요.",end:"사람들이 부자가 되면서 집에 들일 물건을 사기 시작했어요.",next:"가전·자동차"},
+    {s:1960,e:1973,cat:"cons",em:"📺",short:"가전·자동차 (고도성장)",name:"가전·자동차 (고도성장)",when:"1960~1972",why:"텔레비전·세탁기·냉장고·자동차가 집집마다 들어왔어요. 소니·파나소닉·도요타가 무럭무럭 컸어요.",end:"1973년 오일쇼크가 왔어요.",next:"오일쇼크"},
+    {s:1973,e:1975,cat:"winter",em:"⛽",short:"오일쇼크",name:"오일쇼크",when:"1973~1974",why:"기름값이 몇 배로 뛰자 기름을 거의 다 수입하는 일본이 크게 흔들렸어요.",end:"기름을 덜 쓰는 작은 차와 전자제품으로 세계를 놀라게 했어요.",next:"전자·자동차 수출"},
+    {s:1975,e:1985.7,cat:"tech",em:"📼",short:"전자·자동차 수출",name:"전자·자동차 수출",when:"1975~1985",why:"워크맨·비디오·작고 튼튼한 자동차를 세계에 팔았어요. '메이드 인 재팬'이 최고였어요.",end:"1985년 엔화값이 크게 오르자, 남는 돈이 땅과 주식으로 몰려갔어요.",next:"은행·부동산"},
+    {s:1985.7,e:1990,cat:"fin",em:"🏦",short:"은행·부동산·증권 (거품)",name:"은행·부동산·증권 (거품 경제)",when:"1986~1989",why:"땅값과 주가가 미친 듯이 올랐어요. 도쿄 땅을 팔면 미국 전체를 살 수 있다는 말까지 나왔어요. 닛케이는 1989년 마지막 날 38,915로 최고!",end:"1990년 거품이 '펑' 터졌어요.",next:"잃어버린 시간"},
+    {s:1990,e:2003.3,cat:"winter",em:"🫧",short:"거품 붕괴, 잃어버린 시간",name:"거품 붕괴 (잃어버린 시간)",when:"1990~2003",why:"주가가 13년 동안 계속 내려 2003년엔 약 7,600까지, 최고점보다 80% 낮아졌어요. 1999~2000년 인터넷 붐(소프트뱅크)이 잠깐 있었지만 금방 꺼졌어요.",end:"은행들이 빚 문제를 정리하고 중국 수출이 늘기 시작했어요.",next:"수출·은행 회복"},
+    {s:2003.3,e:2007.6,cat:"ind",em:"⚙️",short:"수출·기계·은행 회복",name:"수출·기계·은행 회복",when:"2003~2007",why:"중국이 빠르게 크면서 일본 기계·철강·해운 회사가 바빠졌고, 은행들도 다시 건강해졌어요.",end:"2008년 금융위기가 왔어요.",next:"긴 겨울"},
+    {s:2007.6,e:2012.9,cat:"winter",em:"🌊",short:"금융위기·엔고·대지진",name:"금융위기·엔고·동일본 대지진",when:"2008~2012",why:"금융위기로 닛케이가 2009년 약 7,000까지 떨어졌어요. 엔화가 너무 비싸서 수출이 힘들었고, 2011년엔 큰 지진과 쓰나미, 원전 사고까지 있었어요.",end:"2012년 말 새 총리가 '돈을 많이 풀겠다'고 했어요.",next:"아베노믹스"},
+    {s:2012.9,e:2015.6,cat:"cons",em:"🚗",short:"엔저·자동차 수출",name:"엔저·자동차 수출 (아베노믹스)",when:"2013~2015",why:"엔화값을 낮추자 해외에서 일본 물건이 싸져 도요타 같은 수출 회사가 크게 벌었어요.",end:"중국 경제 걱정으로 숨을 골랐어요.",next:"공장 자동화·게임"},
+    {s:2015.6,e:2020.2,cat:"tech",em:"🎮",short:"공장 자동화·게임",name:"공장 자동화·게임",when:"2016~2019",why:"공장 로봇(화낙)·센서(키엔스), 그리고 닌텐도 스위치(2017) 같은 게임이 인기였어요.",end:"2020년 코로나가 왔어요.",next:"종합상사·은행"},
+    {s:2020.2,e:2023,cat:"fin",em:"🏢",short:"종합상사·은행",name:"종합상사·은행 (워런 버핏)",when:"2020~2022",why:"유명한 투자자 워런 버핏이 2020년 일본 종합상사(무엇이든 사고파는 큰 무역회사)에 투자하면서 상사 주가가 크게 올랐어요.",end:"반도체 장비 회사가 다음 주자로 뛰어나왔어요.",next:"반도체 장비"},
+    {s:2023,e:2025.8,cat:"semi",em:"🔬",short:"반도체 장비",name:"반도체 장비 (도쿄일렉트론·어드반테스트)",when:"2023~2025",why:"반도체를 만드는 기계와 검사 장비를 만드는 일본 회사가 인공지능 덕에 크게 올랐어요. 2024년 2월 닛케이가 34년 만에 1989년 최고치를 넘었어요.",end:"2024년 8월 5일 하루에 12% 넘게 떨어진 적도 있었지만 다시 달렸어요.",next:"인공지능·로봇"},
+    {s:2025.8,e:2026.47,cat:"semi",em:"🤖",short:"인공지능·반도체·로봇",name:"인공지능·반도체·로봇 (다카이치 랠리)",when:"2025 하반기~2026년 6월",why:"다카이치 총리가 인공지능을 밀어주겠다고 했고, 2026년 2월 선거에서 크게 이겼어요. 소프트뱅크·반도체 장비·로봇·전선 회사가 올라 닛케이가 4월 처음 6만, 6월엔 7만 1천을 넘었어요.",end:"6월 최고치 뒤 인공지능 걱정이 커졌어요.",next:"겨울"},
+    {s:2026.47,e:NOW,cat:"winter",em:"🥶",short:"인공지능 걱정 겨울",name:"인공지능 걱정 겨울",when:"2026년 6월~지금",live:true,why:"6월 18일 71,053이던 닛케이가 11월 6일 57,435로 약 19% 내려왔어요. 11월 6일 하루에만 5.96% 떨어졌어요.",end:"다음 주인공은 아직 몰라요.",next:"?"}
+  ];
+
+  // ===== 중국 (상하이) =====
+  const CN=[
+    {s:1926,e:1937.6,cat:"fin",em:"🏦",short:"옛 상하이 시장 (은행·무역)",name:"옛 상하이 증권시장 (은행·무역)",when:"1926~1937",why:"상하이는 '동양의 월스트리트'라고 불릴 만큼 은행과 무역 회사가 많았어요.",end:"1937년 중일전쟁이 시작됐어요.",next:"전쟁"},
+    {s:1937.6,e:1949.4,cat:"winter",em:"💥",short:"전쟁 (중일전쟁·내전)",name:"전쟁 (중일전쟁·국공내전)",when:"1937~1949",why:"전쟁이 계속되고 물가가 하늘로 치솟아 시장이 제대로 돌아가지 않았어요.",end:"1949년 공산당 정부가 세워지며 주식시장이 사라졌어요.",next:"시장 없음"},
+    {s:1949.4,e:1990.9,cat:"none",em:"🚫",short:"주식시장이 없던 시절",name:"주식시장이 없던 시절",when:"1949~1990",why:"나라가 모든 회사를 가지고 있어서 주식을 사고팔 수 없었어요. 1978년부터 조금씩 시장경제로 바뀌었어요.",end:"1990년 12월 상하이 증권거래소가 다시 문을 열었어요.",next:"개장 광풍"},
+    {s:1990.9,e:1992.5,cat:"fin",em:"🎉",short:"거래소 개장 광풍",name:"거래소 개장 광풍",when:"1990~1992",why:"처음 열린 시장에 사람들이 몰려 몇 개 안 되는 주식값이 몇 배씩 뛰었어요.",end:"너무 빨리 올라 크게 떨어졌어요.",next:"겨울"},
+    {s:1992.5,e:1996,cat:"winter",em:"🌧️",short:"광풍 뒤 겨울",name:"광풍 뒤 겨울",when:"1992~1995",why:"1992년 약 1,400이던 지수가 1994년 300대까지 내려왔어요.",end:"인터넷 시대가 다가왔어요.",next:"기술·인터넷"},
+    {s:1996,e:2001.5,cat:"tech",em:"💻",short:"기술·인터넷",name:"기술·인터넷 첫 강세장",when:"1996~2001",why:"전자·통신·인터넷 회사가 인기였어요. 2001년 지수가 2,200을 넘었어요.",end:"나라가 가진 주식을 시장에 팔 거란 걱정에 4년 동안 내려갔어요.",next:"겨울"},
+    {s:2001.5,e:2005.5,cat:"winter",em:"❄️",short:"4년 겨울",name:"4년 겨울",when:"2001~2005",why:"지수가 2005년 1,000 아래까지 떨어졌어요.",end:"주식 제도를 고치고, 큰 은행·자원 회사들이 상장했어요.",next:"대광풍"},
+    {s:2005.5,e:2007.8,cat:"fin",em:"🏦",short:"은행·자원 대형주 대광풍",name:"은행·자원 대형주 대광풍",when:"2005~2007",why:"공상은행·페트로차이나 같은 거대 회사가 상장하고, 누구나 주식을 사던 시절이에요. 2007년 10월 지수가 6,124로 역대 최고!",end:"2008년 금융위기로 1년 만에 약 70% 떨어졌어요.",next:"대폭락"},
+    {s:2007.8,e:2008.9,cat:"winter",em:"⛈️",short:"70% 대폭락",name:"70% 대폭락",when:"2007~2008",why:"너무 오른 주가와 세계 금융위기가 겹쳤어요. 100원이 30원이 됐어요.",end:"정부가 4조 위안이라는 큰돈을 풀었어요.",next:"인프라"},
+    {s:2008.9,e:2009.7,cat:"ind",em:"🏗️",short:"철강·건설·기계",name:"철강·건설·기계 (4조 위안 부양)",when:"2008~2009",why:"나라가 길·철도·다리를 엄청 짓자 철강·시멘트·기계 회사가 반짝 올랐어요.",end:"그 뒤 5년 동안 긴 겨울이 왔어요.",next:"겨울"},
+    {s:2009.7,e:2014.5,cat:"winter",em:"😴",short:"5년 긴 겨울",name:"5년 긴 겨울",when:"2009~2014",why:"경제는 컸지만 주가는 거의 오르지 않았어요.",end:"2014년 '빚내서 투자'하는 사람이 폭발적으로 늘었어요.",next:"빚투 광풍"},
+    {s:2014.5,e:2015.5,cat:"fin",em:"🎢",short:"빚내서 투자 광풍",name:"빚내서 투자 광풍 (증권사·인프라)",when:"2014~2015",why:"돈을 빌려 주식을 사는 사람이 엄청 늘어 1년 만에 지수가 두 배 넘게(5,178) 올랐어요.",end:"2015년 여름 빚이 한꺼번에 터져 폭락했어요.",next:"폭락"},
+    {s:2015.5,e:2016.2,cat:"winter",em:"💣",short:"2015 대폭락",name:"2015 대폭락",when:"2015~2016",why:"빌린 돈으로 산 주식을 한꺼번에 팔아야 해서 몇 달 만에 40% 넘게 떨어졌어요.",end:"사람들이 튼튼한 소비 회사를 찾기 시작했어요.",next:"백주·소비"},
+    {s:2016.2,e:2020,cat:"cons",em:"🍶",short:"백주·소비 우량주",name:"백주·소비 우량주 (마오타이)",when:"2016~2019",why:"중국 사람들이 부자가 되며 비싼 술(백주 마오타이)·가전·보험을 많이 사서 이 회사들이 꾸준히 올랐어요.",end:"코로나 뒤 전기차와 친환경 에너지로 관심이 옮겨갔어요.",next:"배터리·태양광"},
+    {s:2020,e:2021.9,cat:"energy",em:"🔋",short:"전기차 배터리·태양광",name:"전기차 배터리·태양광 (CATL)",when:"2020~2021",why:"중국이 세계 전기차 배터리(CATL)와 태양광 패널 1등이 되면서 크게 올랐어요.",end:"2021년 부동산 회사 헝다가 빚을 못 갚으면서 긴 겨울이 시작됐어요.",next:"겨울"},
+    {s:2021.9,e:2024.7,cat:"winter",em:"🏚️",short:"부동산 위기·빅테크 규제",name:"부동산 위기·큰 인터넷 회사 규제",when:"2021~2024",why:"아파트를 짓는 회사들이 빚을 못 갚고, 정부가 큰 인터넷 회사들을 강하게 규제해서 3년 가까이 힘들었어요.",end:"2024년 9월 정부가 큰 부양책을 내놓고, 2025년 1월 인공지능 '딥시크'가 세계를 놀라게 했어요.",next:"인공지능"},
+    {s:2024.7,e:2026.5,cat:"semi",em:"🤖",short:"인공지능·반도체·로봇",name:"인공지능·반도체·로봇 (딥시크)",when:"2024 하반기~2026 상반기",why:"중국 인공지능 딥시크, 로봇 회사 유니트리, 메모리 회사 CXMT 등 '스스로 만드는 기술'이 주인공이었어요. 상하이 지수가 2025년 18% 오르고 2026년 초 10년 만의 최고치를 찍었어요.",end:"7월부터 인공지능 수요 걱정과 수출 규제로 기술주가 팔리기 시작했어요.",next:"숨고르기"},
+    {s:2026.5,e:NOW,cat:"winter",em:"😮‍💨",short:"기술주 숨고르기",name:"기술주 숨고르기",when:"2026년 7월~지금",live:true,why:"상하이 지수가 1년 중 최고 약 4,259에서 11월 6일 3,649로 내려왔어요. 다만 정부가 시장을 받쳐줘서 다른 나라보다는 덜 떨어졌어요.",end:"다음 주인공은 아직 몰라요.",next:"?"}
+  ];
+
+  // ===== 홍콩 =====
+  const HK=[
+    {s:1926,e:1941.9,cat:"fin",em:"⚓",short:"무역항 (은행·해운)",name:"무역항 (은행·해운)",when:"1926~1941",why:"홍콩은 중국과 세계를 잇는 항구라서 은행(HSBC)과 배 회사가 주인공이었어요.",end:"1941년 일본군이 홍콩을 점령했어요.",next:"점령"},
+    {s:1941.9,e:1945.7,cat:"winter",em:"🚧",short:"일본 점령",name:"일본 점령 (거래 멈춤)",when:"1941~1945",why:"전쟁 동안 주식 거래가 사실상 멈췄어요.",end:"전쟁이 끝나고 중국 본토에서 사람과 공장이 몰려왔어요.",next:"공장 도시"},
+    {s:1945.7,e:1969,cat:"ind",em:"🧸",short:"공장 도시 (옷·장난감)",name:"공장 도시 (옷·장난감·전자)",when:"1946~1968",why:"홍콩이 옷·장난감·작은 전자제품을 만들어 세계에 파는 공장 도시가 됐어요.",end:"1969년 항셍지수가 생기고 주식 붐이 시작됐어요.",next:"주식 광풍"},
+    {s:1969,e:1973.2,cat:"fin",em:"🎢",short:"1차 주식 광풍",name:"1차 주식 광풍",when:"1969~1973",why:"너도나도 주식을 사서 항셍지수가 4년 만에 10배 넘게(1,775) 올랐어요.",end:"1973년 거품이 터졌어요.",next:"대폭락"},
+    {s:1973.2,e:1975,cat:"winter",em:"💥",short:"91% 대폭락",name:"91% 대폭락",when:"1973~1974",why:"1,775였던 지수가 1974년 말 약 150까지, 91% 떨어졌어요. 100원이 9원이 된 거예요!",end:"땅이 좁은 홍콩에서 부동산 회사들이 크게 크기 시작했어요.",next:"부동산·은행"},
+    {s:1975,e:1997.6,cat:"fin",em:"🏢",short:"부동산·은행",name:"부동산·은행",when:"1975~1997",why:"좁은 땅에 높은 빌딩을 짓는 부동산 회사와 은행이 오랫동안 주인공이었어요. 1987년 블랙먼데이 땐 거래소가 4일이나 문을 닫았어요.",end:"1997년 중국으로 반환된 직후 아시아 외환위기가 덮쳤어요.",next:"외환위기"},
+    {s:1997.6,e:1998.7,cat:"winter",em:"❄️",short:"아시아 외환위기",name:"아시아 외환위기",when:"1997~1998",why:"이웃 나라들이 줄줄이 돈이 바닥나자 홍콩 주가도 1년 만에 60% 넘게 빠졌어요.",end:"인터넷 붐이 왔어요.",next:"인터넷"},
+    {s:1998.7,e:2000.2,cat:"tech",em:"💻",short:"인터넷 붐",name:"인터넷 붐",when:"1999~2000",why:"인터넷 회사라면 무엇이든 크게 올랐어요.",end:"거품이 터지고 2003년엔 사스(전염병)까지 왔어요.",next:"겨울"},
+    {s:2000.2,e:2003.4,cat:"winter",em:"😷",short:"거품 붕괴·사스",name:"거품 붕괴·사스(전염병)",when:"2000~2003",why:"인터넷 거품이 꺼지고 2003년 사스 전염병으로 거리가 텅 비었어요.",end:"중국의 거대 회사들이 홍콩에 상장하기 시작했어요.",next:"중국 대형주"},
+    {s:2003.4,e:2007.8,cat:"fin",em:"🇨🇳",short:"중국 대형 회사 상장",name:"중국 대형 회사 상장 (은행·통신·자원)",when:"2003~2007",why:"중국 은행·통신·석유 회사들이 홍콩에 상장해 2007년 지수가 31,638까지 올랐어요.",end:"2008년 금융위기가 왔어요.",next:"금융위기"},
+    {s:2007.8,e:2009,cat:"winter",em:"⛈️",short:"금융위기",name:"금융위기",when:"2008",why:"1년 만에 지수가 60% 넘게 떨어졌어요.",end:"중국 인터넷 회사들이 쑥쑥 크기 시작했어요.",next:"중국 인터넷"},
+    {s:2009,e:2021.1,cat:"tech",em:"📱",short:"중국 인터넷 (텐센트·알리바바)",name:"중국 인터넷 (텐센트·알리바바)",when:"2009~2021",why:"메신저·게임(텐센트), 온라인 쇼핑(알리바바)이 중국 사람들의 생활이 되면서 오랫동안 주인공이었어요.",end:"2021년부터 정부 규제, 부동산 위기, 코로나가 한꺼번에 왔어요.",next:"겨울"},
+    {s:2021.1,e:2024.1,cat:"winter",em:"🥶",short:"규제·부동산·코로나 겨울",name:"규제·부동산·코로나 겨울",when:"2021~2023",why:"약 31,000이던 항셍지수가 2024년 초 약 14,800까지, 절반 넘게 떨어졌어요.",end:"중국 정부의 부양책과 중국 인공지능이 분위기를 바꿨어요.",next:"인공지능"},
+    {s:2024.1,e:2026.05,cat:"semi",em:"🤖",short:"중국 인공지능·새 소비",name:"중국 인공지능·새 소비",when:"2024~2026년 1월",why:"딥시크 등 중국 인공지능과 반도체(SMIC), 인형 회사 팝마트 같은 새로운 소비 회사가 떴어요. 항셍지수가 2025년 28% 올랐어요.",end:"2026년 1월 약 28,000을 찍은 뒤 큰 기술 회사들이 쉬어가요.",next:"순환"},
+    {s:2026.05,e:NOW,cat:"mix",em:"🔀",short:"업종 바꿔 타기",name:"업종 바꿔 타기 (기술주 쉬고, 부동산·소재로)",when:"2026년~지금",live:true,why:"텐센트·알리바바 같은 큰 회사는 올해 두 자릿수로 떨어졌지만, 새로 상장한 인공지능 모델 회사(즈푸·미니맥스)는 크게 올랐어요. 부동산·소재·산업재로 돈이 옮겨 다니는 중이에요.",end:"11월 첫 주엔 해외 투자자들이 다시 사면서 5% 넘게 올랐어요.",next:"?"}
+  ];
+
+  // ===== 대만 =====
+  const TW=[
+    {s:1926,e:1945.7,cat:"none",em:"🚫",short:"주식시장이 없던 시절",name:"주식시장이 없던 시절 (일본 통치)",when:"1926~1945",why:"대만은 일본의 지배를 받고 있었고, 지금 같은 주식시장은 없었어요.",end:"전쟁이 끝나고 새 정부가 들어섰어요.",next:"재건"},
+    {s:1945.7,e:1962,cat:"none",em:"🌱",short:"전쟁 뒤 재건",name:"전쟁 뒤 재건",when:"1945~1961",why:"농사를 짓던 섬이 조금씩 공장을 세우기 시작했어요.",end:"1962년 대만증권거래소가 문을 열었어요.",next:"작은 시장"},
+    {s:1962,e:1986,cat:"ind",em:"🧵",short:"작은 시장: 섬유·플라스틱",name:"작은 시장: 섬유·플라스틱",when:"1962~1985",why:"옷감·플라스틱(포모사) 공장이 수출로 돈을 벌었지만 주식시장은 아직 작았어요.",end:"1986년부터 너도나도 주식을 사기 시작했어요.",next:"대광풍"},
+    {s:1986,e:1990.1,cat:"fin",em:"🎢",short:"주식 대광풍 (금융·건설)",name:"주식 대광풍 (금융·건설)",when:"1986~1989",why:"돈이 넘쳐 '대만은 발목까지 돈이 찬다'는 말이 나왔어요. 지수가 4년 만에 12,682까지, 10배 넘게 올랐어요.",end:"1990년 거품이 터졌어요.",next:"대폭락"},
+    {s:1990.1,e:1990.8,cat:"winter",em:"💥",short:"80% 대폭락",name:"80% 대폭락",when:"1990",why:"8개월 만에 12,682에서 약 2,500까지, 80% 떨어졌어요. 100원이 20원이 됐어요.",end:"컴퓨터 부품 회사들이 새 주인공으로 떠올랐어요.",next:"컴퓨터 부품"},
+    {s:1990.8,e:2000.2,cat:"tech",em:"💻",short:"컴퓨터 부품 (PC 왕국)",name:"컴퓨터 부품 (PC 왕국)",when:"1991~2000",why:"세계 컴퓨터의 부품과 노트북을 대만이 만들었어요. 1987년 생긴 TSMC도 이때 크기 시작했어요.",end:"2000년 닷컴 거품이 터졌어요.",next:"겨울"},
+    {s:2000.2,e:2001.9,cat:"winter",em:"🌧️",short:"닷컴 붕괴",name:"닷컴 붕괴",when:"2000~2001",why:"10,000이 넘던 지수가 2001년 약 3,400까지 떨어졌어요.",end:"LCD 화면과 휴대폰 부품이 새 주인공이 됐어요.",next:"LCD·휴대폰"},
+    {s:2001.9,e:2007.8,cat:"tech",em:"📺",short:"LCD 화면·휴대폰",name:"LCD 화면·휴대폰",when:"2002~2007",why:"얇은 TV·모니터 화면(LCD)과 휴대폰 회사(HTC)가 인기였어요.",end:"2008년 금융위기가 왔어요.",next:"금융위기"},
+    {s:2007.8,e:2008.9,cat:"winter",em:"⛈️",short:"금융위기",name:"금융위기",when:"2008",why:"수출이 끊기며 지수가 크게 떨어졌어요.",end:"아이폰 시대가 열렸어요.",next:"스마트폰 부품"},
+    {s:2008.9,e:2018,cat:"tech",em:"📲",short:"스마트폰 부품 (애플 공급망)",name:"스마트폰 부품 (애플 공급망)",when:"2009~2017",why:"아이폰 카메라 렌즈(라간)·조립(폭스콘)·칩(TSMC)을 대만 회사들이 맡았어요.",end:"TSMC가 세계에서 가장 앞선 반도체 공장이 됐어요.",next:"반도체"},
+    {s:2018,e:2021.3,cat:"semi",em:"🧠",short:"반도체 (TSMC)",name:"반도체 (TSMC·미디어텍)",when:"2018~2021 초",why:"TSMC가 세계에서 제일 작고 빠른 칩을 만들면서 대만 시장의 대장이 됐어요.",end:"2021년엔 의외의 주인공, 배 회사가 떴어요.",next:"해운"},
+    {s:2021.3,e:2022,cat:"ind",em:"🚢",short:"컨테이너 해운",name:"컨테이너 해운 대박",when:"2021",why:"코로나로 물건 실을 배가 모자라자 배삯이 몇 배로 뛰어 에버그린 같은 해운 회사가 큰돈을 벌었어요.",end:"2022년 금리가 오르고 반도체 재고가 쌓였어요.",next:"겨울"},
+    {s:2022,e:2023,cat:"winter",em:"❄️",short:"반도체 재고·금리 겨울",name:"반도체 재고·금리 겨울",when:"2022",why:"반도체가 너무 많이 쌓이고 이자가 올라 지수가 크게 떨어졌어요.",end:"챗GPT가 나오며 인공지능 서버 수요가 폭발했어요.",next:"인공지능 서버"},
+    {s:2023,e:2026.78,cat:"semi",em:"🤖",short:"인공지능 서버·반도체",name:"인공지능 서버·반도체 (TSMC·폭스콘)",when:"2023~2026년 10월",why:"인공지능 칩(TSMC)과 서버(폭스콘·콴타)를 대만이 거의 다 만들어요. 2026년 4월 처음 40,000을 넘고 10월까지 계속 올랐어요.",end:"10월 최고치 뒤 인공지능 걱정과 미국 선거 충격이 왔어요.",next:"겨울"},
+    {s:2026.78,e:NOW,cat:"winter",em:"🥶",short:"인공지능 걱정 겨울",name:"인공지능 걱정 겨울",when:"2026년 10월~지금",live:true,why:"10월 최고치보다 20% 넘게 떨어져 '약세장'에 들어갔어요. 11월 첫 주엔 12% 넘게 떨어져 2001년 이후 가장 나쁜 한 주였어요.",end:"그래도 올해 처음보다는 30% 넘게 높아요.",next:"?"}
+  ];
+
+  // ===== 싱가포르 =====
+  const SG=[
+    {s:1926,e:1942.1,cat:"energy",em:"🌳",short:"고무·주석 (무역항)",name:"고무·주석 (영국 식민지 무역항)",when:"1926~1941",why:"싱가포르는 말레이반도에서 나는 고무(타이어 재료)와 주석(통조림 캔 재료)을 세계로 실어 나르는 항구였어요. 고무·주석 회사가 주인공이었어요.",end:"1942년 일본군이 싱가포르를 점령했어요.",next:"점령"},
+    {s:1942.1,e:1945.7,cat:"winter",em:"🚧",short:"일본 점령",name:"일본 점령",when:"1942~1945",why:"전쟁 동안 무역이 끊기고 시장이 멈췄어요.",end:"전쟁이 끝나고 다시 항구 일을 시작했어요.",next:"재건"},
+    {s:1945.7,e:1965.6,cat:"energy",em:"⚓",short:"항구 재건·고무 무역",name:"항구 재건·고무 무역",when:"1945~1965",why:"말레이시아와 함께 시장을 쓰면서 고무·주석 무역으로 다시 일어섰어요. 1950년 한국전쟁 땐 고무값이 크게 올랐어요.",end:"1965년 싱가포르가 독립했어요.",next:"공장·항구"},
+    {s:1965.6,e:1973.2,cat:"ind",em:"🏗️",short:"독립 뒤 공장·항구",name:"독립 뒤 공장·항구 짓기",when:"1965~1972",why:"작은 섬나라가 살아남으려고 외국 공장을 불러오고 항구와 조선소를 키웠어요. 주식시장도 커졌어요.",end:"1973년 싱가포르 증권거래소가 따로 생긴 직후 오일쇼크가 왔어요.",next:"오일쇼크"},
+    {s:1973.2,e:1975,cat:"winter",em:"⛽",short:"오일쇼크",name:"오일쇼크",when:"1973~1974",why:"기름값이 뛰고 세계 경제가 나빠지자 주가가 크게 떨어졌어요.",end:"기름을 다루는 일이 오히려 싱가포르의 큰 사업이 됐어요.",next:"정유·조선"},
+    {s:1975,e:1985.8,cat:"ind",em:"🛢️",short:"정유·조선·석유 시추 설비",name:"정유·조선·석유 시추 설비",when:"1975~1985",why:"싱가포르는 기름을 정제하는 공장과, 바다에서 석유를 뽑는 거대한 설비(리그)를 만드는 조선소의 중심지가 됐어요(케펠·셈코프).",end:"1985년 '팬일렉트릭'이라는 회사가 빚 때문에 무너지며 거래소가 3일이나 문을 닫았어요.",next:"위기"},
+    {s:1985.8,e:1986.6,cat:"winter",em:"🌪️",short:"팬일렉트릭 사태·불황",name:"팬일렉트릭 사태·불황",when:"1985~1986",why:"빚을 많이 진 회사가 쓰러지자 시장 전체가 멈췄고, 나라 경제도 처음으로 뒷걸음질 쳤어요.",end:"은행과 부동산이 다시 힘을 냈어요.",next:"은행·부동산"},
+    {s:1986.6,e:1997.5,cat:"fin",em:"🏦",short:"은행·부동산",name:"은행·부동산",when:"1986~1997",why:"아시아의 돈이 모이는 금융 중심지가 되면서 은행과 빌딩 회사가 주인공이었어요.",end:"1997년 아시아 외환위기가 왔어요.",next:"외환위기"},
+    {s:1997.5,e:1998.8,cat:"winter",em:"❄️",short:"아시아 외환위기",name:"아시아 외환위기",when:"1997~1998",why:"이웃 나라들이 돈이 바닥나면서 싱가포르 지수도 1998년 9월 약 800까지, 역사상 가장 낮게 떨어졌어요.",end:"인터넷·전자 붐이 왔어요.",next:"전자·인터넷"},
+    {s:1998.8,e:2000.2,cat:"tech",em:"💻",short:"전자·인터넷",name:"전자·인터넷 붐",when:"1999~2000",why:"컴퓨터 사운드카드 회사 크리에이티브 같은 전자 회사가 인기였어요.",end:"닷컴 거품이 터지고 2003년엔 사스(전염병)까지 왔어요.",next:"겨울"},
+    {s:2000.2,e:2003.3,cat:"winter",em:"😷",short:"거품 붕괴·사스",name:"거품 붕괴·사스(전염병)",when:"2000~2003",why:"전자 수출이 줄고 전염병으로 관광객이 끊겼어요.",end:"중국 성장과 원자재 붐이 시작됐어요.",next:"조선·부동산"},
+    {s:2003.3,e:2007.8,cat:"ind",em:"🚢",short:"조선·해운·부동산",name:"조선·해운·부동산",when:"2003~2007",why:"기름값이 오르며 석유 시추 설비 주문이 쏟아지고, 부동산을 쪼개 파는 '리츠'라는 상품도 인기를 끌었어요.",end:"2008년 금융위기가 왔어요.",next:"금융위기"},
+    {s:2007.8,e:2009.2,cat:"winter",em:"⛈️",short:"금융위기",name:"금융위기",when:"2008",why:"1년 만에 지수가 절반 넘게 떨어졌어요.",end:"카지노가 있는 큰 리조트가 문을 열었어요.",next:"리조트·부동산"},
+    {s:2009.2,e:2014.5,cat:"cons",em:"🎰",short:"리조트·부동산·리츠",name:"카지노 리조트·부동산·리츠",when:"2009~2014",why:"2010년 마리나베이샌즈 같은 카지노 리조트가 생겨 관광객이 몰렸고, 부동산·리츠가 꾸준히 올랐어요.",end:"2014년 기름값이 폭락하며 바다 석유 설비 회사들이 크게 흔들렸어요.",next:"겨울"},
+    {s:2014.5,e:2016.2,cat:"winter",em:"🛢️",short:"유가 폭락",name:"유가 폭락 (해양 설비 위기)",when:"2014~2016",why:"기름값이 절반 넘게 떨어지자 시추 설비 주문이 끊겨 케펠·셈코프마린 같은 회사가 크게 떨어졌어요.",end:"금리가 오르며 은행이 돈을 더 벌기 시작했어요.",next:"은행"},
+    {s:2016.2,e:2020.1,cat:"fin",em:"🏦",short:"은행",name:"은행 (DBS·OCBC·UOB)",when:"2016~2019",why:"싱가포르 시장의 절반을 차지하는 세 은행이 꾸준히 벌어 시장을 끌었어요.",end:"2020년 코로나로 항공·관광이 멈췄어요.",next:"코로나"},
+    {s:2020.1,e:2020.9,cat:"winter",em:"😷",short:"코로나",name:"코로나",when:"2020",why:"싱가포르항공처럼 여행 관련 회사가 크게 떨어졌어요.",end:"금리가 오르며 은행이 다시 주인공이 됐어요.",next:"은행"},
+    {s:2020.9,e:2026.68,cat:"fin",em:"🏦",short:"은행 (안전한 피난처)",name:"은행 (DBS·OCBC·UOB, 안전한 피난처)",when:"2021~2026년 9월",why:"이자가 오르고, 세계가 불안할 때 '안전한 싱가포르 달러'로 돈이 몰리며 세 은행이 계속 신기록을 썼어요. 지수가 2026년 2월 처음 5,000을 넘고, 9월 4일 5,828로 역대 최고!",end:"9월 최고치 뒤 인공지능 걱정과 미국 선거 충격, 은행 실적 실망이 겹쳤어요.",next:"숨고르기"},
+    {s:2026.68,e:NOW,cat:"winter",em:"😮‍💨",short:"신기록 뒤 숨고르기",name:"신기록 뒤 숨고르기",when:"2026년 9월~지금",live:true,why:"9월 4일 5,828이던 지수가 11월 6일 5,179로 약 11% 내려왔어요. 그래도 1년 전보다는 약 15% 높아요.",end:"다음 주인공은 아직 몰라요.",next:"?"}
+  ];
+
+  const MK={
+    kr:{f:"🇰🇷",n:"한국",idx:"코스피",list:KR},
+    us:{f:"🇺🇸",n:"미국",idx:"S&P500·나스닥",list:US},
+    jp:{f:"🇯🇵",n:"일본",idx:"닛케이225",list:JP},
+    cn:{f:"🇨🇳",n:"중국",idx:"상하이종합",list:CN},
+    hk:{f:"🇭🇰",n:"홍콩",idx:"항셍",list:HK},
+    tw:{f:"🇹🇼",n:"대만",idx:"가권(자취안)",list:TW},
+    sg:{f:"🇸🇬",n:"싱가포르",idx:"STI(스트레이츠타임스)",list:SG}
+  };
+  const ORDER=["kr","us","jp","cn","hk","tw","sg"];
+
+  // ===== 짧은 기간 이야기 (2026년 11월 6일 금요일 마감 기준) =====
+  const NONE=["아직 없음","이 기간엔 뚜렷하게 새로 떠오른 업종이 없어요. 겨울이 끝나야 보통 새 주인공이 보여요."];
+  const R={
+    kr:{
+      d1:{line:"코스피 5,383.80 → 5,059.69 (11월 6일 금)",chg:"-6.02%",
+        hero:["버틴 쪽: 생활필수품 (-1.9%)","라면·음료처럼 매일 사는 물건을 파는 회사들은 조금만 내렸어요. 겁이 날 때 사람들은 '그래도 이건 꼭 사지' 하는 회사로 피해요."],
+        winter:["반도체 폭락 + 서킷브레이커","장이 열리고 3분 만에 8% 넘게 떨어지자 거래소가 '잠깐 멈춰!' 하고 20분 동안 거래를 멈췄어요(서킷브레이커). 삼성전자는 6.35%, SK하이닉스는 10.44% 떨어졌고, 외국인이 하루에 2조 7,690억 원어치를 팔았어요."],
+        next:["아직 없음","이날 760개 종목이 내리고 131개만 올랐어요. 새 주인공을 찾기엔 너무 무서운 날이었어요."],
+        ev:[["오전 9:03","8% 넘게 떨어져 서킷브레이커, 20분 거래 멈춤"],["오후","기관이 1조 7천억 원어치를 사서 5,000선은 지킴"]]},
+      w1:{line:"코스피 5,730.74 → 5,059.69 (11월 2~6일)",chg:"-11.7%",
+        hero:["주식 대신 금","이번 주 한국 주식엔 뚜렷한 주인공이 없었어요. 대신 겁먹은 돈이 금으로 피난 가서, 금값이 일주일에 4~5% 올랐어요."],
+        winter:["미국 선거 '블루 웨이브' 충격","11월 3일 미국 중간선거에서 민주당(파란색)이 국회 상원·하원을 모두 이겼어요. 민주당은 '인공지능 데이터센터(컴퓨터를 엄청 많이 모아둔 큰 건물)가 전기와 물을 너무 많이 쓴다'며 규제하자고 해왔어요. 데이터센터가 덜 지어지면 거기 들어갈 메모리 반도체도 덜 팔릴까 봐 삼성전자·SK하이닉스가 크게 떨어졌어요. 정보기술 업종은 한 주에 약 18% 하락!"],
+        next:["후보: 조선·방위산업·전력기기","전문가들은 반도체 다음 주자로 배·무기·전기 장비 회사, 그리고 덜 올랐던 바이오·화장품을 지켜보고 있어요. 아직 확실한 주인공은 아니에요."],
+        ev:[["11/2 월","+2.2% 반등 (5,859)"],["11/3 화","-3.6% 미국 선거를 앞두고 걱정"],["11/4 수","+0.6% 잠깐 숨 돌림"],["11/5 목","-5.3% 선거 결과에 반도체 급락"],["11/6 금","-6.0% 서킷브레이커, 5,060"]]},
+      m1:{line:"10월 12일 6,384 → 11월 6일 5,060",chg:"약 -21%",
+        hero:["SK하이닉스의 깜짝 하루 (10/28)","SK하이닉스가 역대 최대 실적을 내고, 번 돈을 주주에게 크게 돌려주겠다고(주주환원) 하자 코스피가 하루에 6.6% 올랐어요. 하지만 오래가지 못했어요."],
+        winter:["물가 쇼크 + '인공지능에 돈 너무 쓴다' 걱정","10월 15일 미국 물가가 예상보다 높게 나와 이자가 오를까 겁나서 코스피가 7.6% 떨어졌어요(올해 10번째 서킷브레이커). 10월 30일엔 미국 구글(알파벳)이 인공지능 시설에 돈을 너무 많이 써서, 번 돈보다 쓴 돈이 더 많았다는 소식에 또 3.5% 떨어졌어요."],
+        next:["후보: 조선·방위산업·전력기기","반도체가 쉬는 동안 다른 업종으로 관심이 조금씩 옮겨가고 있어요."],
+        ev:[["10/15","-7.6% 물가 쇼크, 서킷브레이커"],["10/28","+6.6% SK하이닉스 최대 실적"],["10/30","-3.5% 미국 큰 회사들 '돈 걱정'"],["11/6","-6.0% 미국 선거 충격"]]},
+      m6:{line:"6월 19일 최고 9,385.59 → 11월 6일 5,059.69",chg:"고점 대비 -46%",
+        hero:["인공지능 반도체 (5~6월)","미국 반도체 회사들이 크게 오르고, 6월엔 미국·이란이 전쟁을 끝내자는 약속(양해각서)까지 나오면서 코스피가 6월 19일 9,385까지 올랐어요. 삼성전자·SK하이닉스가 앞장섰어요."],
+        winter:["반도체 급락 → 인공지능 거품 걱정","7월 7~8일 반도체 회사들이 좋은 실적을 냈는데도 주가가 크게 떨어졌고, 7월 말엔 서킷브레이커가 잇따라 걸렸어요. '인공지능 투자가 너무 과했나?' 하는 걱정이 커지며 5개월 만에 거의 반토막(-46%)이 났어요."],
+        next:["관심이 퍼지는 중: 전력기기·조선·방위산업, 바이오·화장품","반도체 혼자 달리던 데서 실적이 좋은 다른 업종으로 관심이 나뉘고 있어요. 다만 시장 전체가 겨울이라 아직 '새 주인공'이라 부르긴 일러요."],
+        ev:[["6/19","장중 9,385.59 역대 최고"],["7/7~8","반도체 급락"],["7월 말","서킷브레이커 잇따라 발동"],["10/15","물가 쇼크, 서킷브레이커"],["11/6","5,059.69, 최고점보다 46% 낮음"]]}
+    },
+    us:{
+      d1:{line:"S&P500 7,376.86 (+0.31%) · 나스닥 +1.09% · 다우 -0.46%",chg:"+0.3%",
+        hero:["반도체 반등 (+4.2%)","전날 크게 떨어졌던 반도체 회사들을 '너무 많이 떨어졌다'며 다시 사는 사람들이 생겨, 하루 만에 4% 넘게 올랐어요."],
+        winter:["일자리가 너무 좋아서 생긴 걱정","10월 일자리 숫자가 예상보다 훨씬 좋게 나왔어요. 좋은 소식 같지만, 경제가 너무 뜨거우면 중앙은행이 이자를 올릴 수 있어서 다우지수는 내렸어요."],
+        next:["아직 없음","하루 반등만으로는 새 주인공이라 하기 어려워요."],
+        ev:[["장 시작 전","10월 일자리 지표가 예상보다 강함"],["장 마감","나스닥 +1.1%, 다우 -0.5%"]]},
+      w1:{line:"S&P500 -2.68% · 나스닥 -3.37% (11월 2~6일)",chg:"-2.7%",
+        hero:["통신서비스 업종 (+4.9%)","구글·메타 같은 인터넷·통신서비스 회사 모음이 이번 주 가장 많이 올랐어요."],
+        winter:["선거 뒤 '인공지능 규제' 공포","11월 5일 하루에 S&P500이 4.4%, 나스닥이 5.5% 떨어져 약 3조 달러가 사라졌어요. 2025년 4월 관세 충격 뒤 가장 나쁜 하루였어요. 텍사스 새 주지사가 '전기요금·물을 보호하는 법이 생길 때까지 새 데이터센터 허가를 멈추겠다'고 약속한 것도 걱정을 키웠어요."],
+        next:["기름값은 오히려 뚝","이란과 전쟁을 끝낼 협상 기대로 기름값이 일주일에 약 12% 떨어졌어요. 2022년 이후 가장 큰 주간 하락이에요. 에너지가 바통을 넘길지 지켜봐야 해요."],
+        ev:[["11/2 월","기름값 7% 넘게 하락 (이란 협상 기대)"],["11/3 화","중간선거"],["11/5 목","S&P500 -4.4%, 나스닥 -5.5%"],["11/6 금","반도체 반등, 나스닥 +1.1%"]]},
+      m1:{line:"S&P500 10월 최고 약 7,845 → 7,377",chg:"약 -6%",
+        hero:["에너지·기름 (10월)","10월엔 미국이 이란을 다시 공격할 거란 소식에 기름값이 한 달 동안 10% 넘게 올랐어요."],
+        winter:["인공지능 '돈 걱정' + 물가","10월 30일 반도체 회사 인텔이 앞으로 실적이 나쁠 거라고 하자 하루에 28.6% 폭락했어요. 구글·아마존은 인공지능 시설에 돈을 너무 많이 써서 남는 돈이 마이너스가 됐어요. 나스닥100은 10월 6일 최고치보다 10% 넘게 떨어졌어요('조정'이라고 불러요)."],
+        next:NONE,
+        ev:[["10/6","S&P500·나스닥 최고치"],["10월 중순","미국 물가가 예상보다 높음"],["10/30","인텔 -28.6%"],["11/5","선거 충격 -4.4%"]]},
+      m6:{line:"6월 말 약 7,500 → 11월 6일 7,377",chg:"제자리 근처",
+        hero:["에너지 + 메모리 반도체","올해 내내 이란 전쟁으로 기름값이 비싸서 에너지가 가장 많이 오른 업종이었어요(8월 중순까지 약 +39%). 인공지능용 메모리를 만드는 샌디스크·마이크론도 상반기에 몇 배씩 올랐어요."],
+        winter:["10월부터 인공지능 걱정","10월 6일 최고치 뒤 '인공지능에 돈을 너무 많이 쓴다'는 걱정과 선거 충격이 겹쳐 기술주가 쉬고 있어요."],
+        next:["기름값이 내려가면 바통이 바뀔 수도","이란 전쟁이 끝나 기름값이 내려가면 에너지가 바통을 넘길 수 있어요. 누구에게 넘길지는 아직 몰라요."],
+        ev:[["6월","미국·이란 종전 양해각서"],["8월","에너지 업종 올해 +39%로 1등"],["10/6","S&P500 최고치"],["11/5","선거 충격"]]}
+    },
+    jp:{
+      d1:{line:"닛케이225 → 57,434.77 (11월 6일)",chg:"-5.96%",hero:NONE,
+        winter:["미국발 인공지능 주식 폭락","미국 기술주가 크게 떨어지자 일본의 반도체·인공지능 회사도 함께 떨어졌어요. 하루에 3,643포인트 하락, 포인트로는 역사상 세 번째로 큰 하락이에요."],
+        next:NONE,ev:[["11/6","닛케이 -5.96%, 도쿄 프라임시장 시가총액 약 77조 엔 감소"]]},
+      w1:{line:"11월 6일 하루에만 -5.96%",chg:"큰 폭 하락",hero:NONE,
+        winter:["미국 선거 충격 → 아시아 반도체 동반 하락","미국에서 데이터센터 규제 걱정이 커지자 한국·대만·일본의 반도체 회사들이 한꺼번에 떨어졌어요."],
+        next:NONE,ev:[["11/3","미국 중간선거"],["11/6","닛케이 -5.96%"]]},
+      m1:{line:"10월~11월 초",chg:"하락",hero:NONE,
+        winter:["인공지능 '돈 걱정'","미국 큰 회사들이 인공지능에 돈을 너무 많이 쓴다는 걱정이 일본 반도체 장비·소프트뱅크 같은 인공지능 관련 회사에도 번졌어요."],
+        next:NONE,ev:[["10월 말","미국 기술주 실적 실망"],["11/6","닛케이 -5.96%"]]},
+      m6:{line:"6월 18일 최고 71,053 → 11월 6일 57,435",chg:"고점 대비 약 -19%",
+        hero:["인공지능·반도체·로봇 (다카이치 랠리)","2월 선거에서 다카이치 총리의 자민당이 크게 이기고 정부가 인공지능을 밀어주겠다고 하자, 반도체 장비(도쿄일렉트론·어드반테스트)·소프트뱅크·로봇(화낙)·전선(후지쿠라) 회사가 크게 올랐어요. 4월 처음 6만, 6월엔 7만 1천까지!"],
+        winter:["인공지능 걱정 → 선거 충격","6월 최고치 뒤 인공지능 투자 걱정이 커졌고, 11월 미국 선거 충격까지 겹쳤어요."],
+        next:NONE,ev:[["4/27","처음 60,000 돌파"],["6/18","71,053 최고치"],["11/6","57,435"]]}
+    },
+    cn:{
+      d1:{line:"상하이종합 3,689.91 → 3,649.18",chg:"-1.10%",
+        hero:["정부가 받쳐준 시장","미국발 기술주 폭락에도 중국 정부가 시장을 받쳐줘서 1%만 떨어졌어요."],
+        winter:["기술주 약세","과학기술 회사 전용 시장(과창판)의 대표 50곳이 2.6%, 메모리 회사 CXMT가 약 5% 떨어졌어요."],
+        next:NONE,ev:[["11/6","상하이 -1.1%, 과창판50 -2.6%"]]},
+      w1:{line:"11월 2~6일",chg:"약 +1.4%",
+        hero:["6주 만에 처음 오른 한 주","6주 연속 내리던 중국 시장이 이번 주엔 조금 올랐어요."],
+        winter:["금요일 기술주 하락","미국 선거 충격으로 금요일엔 인공지능·반도체 주식이 팔렸어요."],
+        next:NONE,ev:[["11/4","+2.2%"],["11/6","-1.1%"]]},
+      m1:{line:"최근 한 달",chg:"약 -4.3%",hero:NONE,
+        winter:["6주 연속 하락","미국 인공지능 걱정과 경제가 느려진다는 걱정이 겹쳐 6주 동안 계속 내렸어요."],
+        next:NONE,ev:[["10월","6주 연속 주간 하락"],["11월 첫 주","하락 멈춤"]]},
+      m6:{line:"1년 중 최고 약 4,259 → 3,649",chg:"1년 전보다 약 -9%",
+        hero:["반도체·인공지능·로봇 (5월까지)","'우리 반도체는 우리가 만든다'는 계획에 과학기술 회사 지수(과창판50)가 5월까지 약 37% 올랐어요. 로봇 회사 유니트리도 상장했어요."],
+        winter:["7월부터 기술주 하락","인공지능 수요 걱정과 수출 규제로 7월부터 중국 기술주가 계속 팔렸어요."],
+        next:NONE,ev:[["5월","과창판50 올해 +37%"],["7월~","기술주 매도"],["11/6","3,649"]]}
+    },
+    hk:{
+      d1:{line:"항셍 24,797 → 24,481.86",chg:"-1.27%",hero:NONE,
+        winter:["바이오·기술주 약세","항셍테크 지수 -1.8%, 바이오 지수 -2.4%로 미래 기대주들이 더 많이 떨어졌어요."],
+        next:NONE,ev:[["11/6","항셍 -1.27%"]]},
+      w1:{line:"11월 2~6일",chg:"약 +5.1%",
+        hero:["해외 투자자들의 '중국 주식 다시 사기'","돈을 자유롭게 넣고 뺄 수 있는 홍콩에 해외 투자자들이 몰려, 11월 5일 하루에만 항셍지수가 3.7%, 기술주 지수가 5.6% 올랐어요. 다른 나라가 떨어질 때 홍콩은 올랐어요!"],
+        winter:["금요일 차익 실현","금요일엔 미국 기술주 충격으로 조금 내렸어요."],
+        next:NONE,ev:[["11/5","항셍 +3.67%, 항셍테크 +5.55%"],["11/6","-1.27%"]]},
+      m1:{line:"최근 한 달",chg:"오르내림",hero:NONE,
+        winter:["인공지능 걱정","미국 인공지능 걱정이 홍콩의 중국 기술주에도 번졌어요."],
+        next:NONE,ev:[["11/5","크게 반등"]]},
+      m6:{line:"1월 최고 약 28,056 → 24,482",chg:"고점 대비 약 -13%",
+        hero:["새로 상장한 중국 인공지능 회사","1월에 상장한 인공지능 회사 즈푸·미니맥스가 크게 올랐어요."],
+        winter:["큰 인터넷 회사 부진","텐센트·알리바바 같은 큰 회사는 올해 두 자릿수로 떨어졌어요. 항셍테크 지수는 5월까지 11% 넘게 빠졌어요."],
+        next:["부동산·소재·산업재","올해 초엔 부동산·소재·산업재 업종이 앞서며 돈이 옮겨 다녔어요."],
+        ev:[["1월","약 28,000, 2021년 이후 최고"],["5월","항셍테크 -11%"],["11/5","+3.7% 반등"]]}
+    },
+    tw:{
+      d1:{line:"가권지수 → 39,701.64 (11월 6일)",chg:"-4.51%",hero:NONE,
+        winter:["TSMC 장중 거의 10% 하락","대만 시장은 TSMC 한 회사의 비중이 아주 커서, TSMC가 흔들리면 시장 전체가 흔들려요. 장 초반 9% 가까이 떨어져 대만 역사상 가장 큰 장중 하락을 기록했고, 정부가 '시장을 안정시켜라'라고 지시했어요."],
+        next:NONE,ev:[["장 초반","-8.99% 역대 최대 장중 하락"],["마감","-4.51%, TSMC -4.69%"]]},
+      w1:{line:"11월 2~6일, 7일 연속 하락",chg:"-12.18%",hero:NONE,
+        winter:["2001년 이후 가장 나쁜 한 주","미국 선거 뒤 인공지능 데이터센터 투자가 줄어들 거라는 걱정에 대만 반도체·서버 회사들이 크게 떨어졌어요."],
+        next:NONE,ev:[["11/5","급락 시작"],["11/6","-4.51%, 약세장 진입"]]},
+      m1:{line:"10월 최고치 → 39,702",chg:"고점 대비 -20.3%",hero:NONE,
+        winter:["'약세장' 진입","최고점에서 20% 넘게 떨어지면 '약세장(곰 시장)'이라고 불러요. 곰이 앞발을 아래로 내리치는 모습에서 나온 말이에요."],
+        next:NONE,ev:[["10월","역대 최고치"],["11/6","고점 대비 -20.3%"]]},
+      m6:{line:"5월~11월",chg:"올해 처음보다 +30% 이상",
+        hero:["인공지능 서버·반도체","4월 처음 40,000을 넘고 10월까지 계속 올랐어요. TSMC는 7월 미국 애리조나에 1천억 달러를 더 투자하기로 했어요."],
+        winter:["10월 이후 인공지능 걱정","10월 최고치 뒤 한 달 만에 20% 넘게 떨어졌어요."],
+        next:NONE,ev:[["4월","처음 40,000 터치"],["10월","역대 최고치"],["11/6","39,702"]]}
+    },
+    sg:{
+      d1:{line:"STI 5,296.25 → 5,179.17 (11월 6일)",chg:"-2.21%",
+        hero:["버틴 쪽: 공항 서비스 회사 SATS (+0.5%)","대표 30개 회사 중 SATS(비행기 기내식·짐 처리 회사)만 조금 올랐어요."],
+        winter:["은행 실적 실망 + 아시아 기술주 하락","싱가포르 시장의 절반인 은행 중 DBS의 실적이 기대에 못 미쳤고, 아시아 기술주가 떨어지자 조선회사 양쯔장이 6.5% 내렸어요."],
+        next:NONE,ev:[["11/6","STI -2.21%, 양쯔장조선 -6.5%"]]},
+      w1:{line:"11월 2~6일",chg:"-4.20%",hero:NONE,
+        winter:["미국 선거 충격이 싱가포르까지","인공지능 규제 걱정으로 아시아 시장이 함께 떨어졌어요. 싱가포르는 기술 회사가 적어서 한국·대만보다는 덜 떨어졌어요."],
+        next:NONE,ev:[["11/5","DBS 실적 발표"],["11/6","-2.21%"]]},
+      m1:{line:"최근 한 달",chg:"-8.67%",hero:NONE,
+        winter:["은행 쉬어가기","올해 내내 신기록을 쓴 은행들이 쉬어가면서 지수도 함께 내려왔어요."],
+        next:NONE,ev:[["10월","하락 시작"],["11/6","5,179"]]},
+      m6:{line:"5월 22일 5,068 → 9월 4일 최고 5,828 → 11월 6일 5,179",chg:"고점 대비 약 -11%",
+        hero:["은행 3총사 (DBS·OCBC·UOB)","세계가 불안할 때 '안전한 곳'으로 여겨져 7월엔 DBS 주가가 처음 70싱가포르달러를 넘고, 7월은 2020년 이후 가장 좋은 한 달이었어요. 9월 4일 지수가 5,828로 역대 최고!"],
+        winter:["9월 최고치 뒤 숨고르기","인공지능 걱정, 미국 선거 충격, 은행 실적 실망이 겹쳐 최고점보다 약 11% 내려왔어요."],
+        next:NONE,ev:[["7/9","DBS 처음 70달러 돌파"],["9/4","STI 5,828 역대 최고"],["11/6","5,179"]]}
+    },
+    gold:{
+      d1:{chg:"-1.0%",t:"강한 일자리 지표로 달러가 오르자 금은 조금 내렸어요 (약 4,050달러)."},
+      w1:{chg:"약 +4~5%",t:"미국 선거 뒤 안전한 곳을 찾는 돈이 몰려 8월 이후 가장 좋은 한 주였어요."},
+      m1:{chg:"약 -2~3%",t:"10월 30일 1년 중 가장 낮은 약 3,870달러까지 갔다가 다시 올라왔어요."},
+      m6:{chg:"내림",t:"1월 5,589달러 최고 기록 뒤 숨고르는 중이에요."}
+    }
+  };
+
+  const GLOSS=[
+    ["서킷브레이커","주가가 하루에 8% 넘게 떨어지면, 사람들이 너무 겁먹지 않게 20분 동안 거래를 멈추는 '비상 정지 버튼'이에요."],
+    ["데이터센터","인공지능을 돌리는 컴퓨터를 수만 대 모아둔 아주 큰 건물이에요. 전기와 물을 엄청 많이 써요."],
+    ["외국인 순매도","다른 나라 투자자들이 산 것보다 판 것이 더 많다는 뜻이에요."],
+    ["약세장","최고점보다 20% 넘게 떨어진 시장이에요. 반대로 쭉 오르는 시장은 '강세장'이에요."],
+    ["주주환원","회사가 번 돈 일부를 주식을 가진 사람(주주)에게 돌려주는 거예요."]
+  ];
+
+  const PERIODS=[{k:"d1",l:"1일"},{k:"w1",l:"1주일"},{k:"m1",l:"1달"},{k:"m6",l:"6개월"},{y:1},{y:3},{y:5},{y:10},{y:20},{y:30},{y:50},{y:100}];
+  let mode="kr", per={y:20}, years=20, hiKey=null;
+
+  const $=s=>document.querySelector(s);
+  const esc=s=>String(s);
+
+  // 시장 탭
+  const tabs=$("#tabs");
+  [...ORDER.map(k=>({k,l:MK[k].f+" "+MK[k].n})),{k:"all",l:"🌏 같이 보기"}].forEach(t=>{
+    const b=document.createElement("button"); b.className="chip mk"+(t.k===mode?" on":""); b.textContent=t.l; b.dataset.k=t.k;
+    b.onclick=()=>{mode=t.k; hiKey=null; document.querySelectorAll(".chip.mk").forEach(c=>c.classList.toggle("on",c===b)); render();};
+    tabs.appendChild(b);
+  });
+  // 기간 칩
+  const chips=$("#chips");
+  PERIODS.forEach(p=>{
+    const b=document.createElement("button"); const lab=p.l||(p.y+"년");
+    b.className="chip per"+((p.y===20)?" on":""); b.textContent=lab;
+    b.onclick=()=>{per=p; if(p.y) years=p.y; hiKey=null; document.querySelectorAll(".chip.per").forEach(c=>c.classList.toggle("on",c===b)); render();};
+    chips.appendChild(b);
+  });
+
+  function inRange(list,from){return list.filter(x=>x.e>from && x.s<NOW);}
+
+  function lane(title,list,from,laneId,W){
+    const span=NOW-from;
+    const el=document.createElement("div"); el.className="lane";
+    el.innerHTML=`<p class="lane-name">${title}</p><div class="track"></div><div class="axis"></div>`;
+    const tr=el.querySelector(".track");
+    inRange(list,from).forEach(x=>{
+      const a=Math.max(x.s,from), b=Math.min(x.e,NOW);
+      const left=(a-from)/span*100, w=(b-a)/span*100, px=w/100*W;
+      const d=document.createElement("div");
+      d.className="seg"; d.style.left=left+"%"; d.style.width=w+"%"; d.style.background=CAT[x.cat].c;
+      d.dataset.key=laneId+":"+list.indexOf(x); d.title=x.when+" · "+x.name;
+      if(px>=44) d.innerHTML=`<span class="em">${x.em}</span><span class="nm">${x.short||x.name}</span>`;
+      else if(px>=20) d.innerHTML=`<span class="em">${x.em}</span>`;
+      tr.appendChild(d);
+    });
+    const ax=el.querySelector(".axis");
+    const step = years<=1?0.25: years<=5?1: years<=10?2: years<=30?5: years<=50?10:20;
+    if(years<=1){
+      [[from,"1년 전"],[from+0.5,"6개월 전"],[NOW,"지금"]].forEach(([v,t],i)=>{
+        const s=document.createElement("span"); s.textContent=t; s.style.left=((v-from)/span*100)+"%";
+        if(i===0)s.style.transform="none"; if(i===2)s.style.transform="translateX(-100%)"; ax.appendChild(s);});
+    } else {
+      for(let y=Math.ceil(from/step)*step;y<=NOW;y+=step){
+        const pos=(y-from)/span*100; if(pos<4||pos>94) continue;
+        const s=document.createElement("span"); s.textContent=y; s.style.left=pos+"%"; ax.appendChild(s);}
+      const s0=document.createElement("span"); s0.textContent=Math.floor(from); s0.style.left="0"; s0.style.transform="none"; ax.appendChild(s0);
+      const s1=document.createElement("span"); s1.textContent="지금"; s1.style.left="100%"; s1.style.transform="translateX(-100%)"; ax.appendChild(s1);
+    }
+    return el;
+  }
+
+  function eraCard(x,key,flag){
+    const c=CAT[x.cat];
+    const d=document.createElement("div"); d.className="era"; d.dataset.key=key;
+    d.innerHTML=`<div class="dot" style="background:${c.c}">${x.em}</div>
+      <div class="body">
+        <div class="when">${flag?flag+" ":""}<span>${x.when}</span><span class="tag" style="background:${c.c}">${c.n}</span>${x.live?'<span class="live">● 지금 진행 중</span>':''}</div>
+        <h3>${x.name}</h3>
+        <p class="why">${x.why}</p>
+        ${x.end?`<p class="end">🏁 ${x.end}</p>`:""}
+        ${x.next && x.next!=="?" ? `<div class="baton">🏃 바통 → <b>${x.next}</b></div>` : x.next==="?" ? `<div class="baton">🏃 바통 → <b>다음 주인공은 누구?</b></div>`:""}
+      </div>`;
+    return d;
+  }
+
+  function highlight(scroll){
+    document.querySelectorAll(".seg,.era").forEach(e=>e.classList.toggle("hi",e.dataset.key===hiKey));
+    if(scroll){const t=document.querySelector(`.era[data-key="${hiKey}"]`); if(t) t.scrollIntoView({behavior:"smooth",block:"center"});}
+  }
+
+  function legend(cats){
+    const L=$("#legend"); L.innerHTML="";
+    [...new Set(cats)].forEach(k=>{const s=document.createElement("span"); s.innerHTML=`<i style="background:${CAT[k].c}"></i>${CAT[k].n}`; L.appendChild(s);});
+  }
+
+  const isLeader=x=>!["winter","none","fixed"].includes(x.cat);
+
+  // "이 기간 한눈에" — 주인공·겨울·새 주인공을 구체적으로
+  function summary(listsWithFlag,from){
+    const box=$("#summary"); box.innerHTML=""; const compact=listsWithFlag.length>1;
+    listsWithFlag.forEach(([flag,list])=>{
+      const rows=inRange(list,from);
+      const heroes=rows.filter(x=>isLeader(x));
+      const winters=rows.filter(x=>x.cat==="winter");
+      const lastLeader=[...rows].reverse().find(x=>isLeader(x));
+      const now=rows[rows.length-1];
+      const sec=document.createElement("div"); sec.className="sumblock";
+      sec.innerHTML=`${listsWithFlag.length>1?`<h3 class="sumflag">${flag}</h3>`:""}
+        <div class="sumgrid">
+          <div class="sumcol hero"><h4>🦸 주인공들 <small>${heroes.length}팀</small></h4>${heroes.length?heroes.map(x=>`<div class="si"><b>${x.em} ${x.short||x.name}</b><span>${x.when}</span></div>`).join(""):'<p class="empty">이 기간엔 바통을 든 업종이 없었어요.</p>'}</div>
+          <div class="sumcol winter"><h4>❄️ 겨울(위기) <small>${winters.length}번</small></h4>${winters.length?winters.map(x=>`<div class="si"><b>${x.em} ${x.name}</b><span>${x.when}</span>${compact?"":`<p>${x.why}</p>`}</div>`).join(""):'<p class="empty">이 기간엔 큰 겨울이 없었어요.</p>'}</div>
+          <div class="sumcol newbie"><h4>🌱 가장 최근 주인공</h4>${lastLeader?`<div class="si"><b>${lastLeader.em} ${lastLeader.name}</b><span>${lastLeader.when}</span>${compact?"":`<p>${lastLeader.why}</p>`}</div>`:'<p class="empty">아직 없어요.</p>'}
+            ${now&&now.live?`<div class="nowbox"><b>📍 지금은?</b> ${now.em} ${now.name}<br>${now.end||""}</div>`:""}</div>
+        </div>`;
+      box.appendChild(sec);
+    });
+  }
+
+  function lessons(lists,from){
+    const box=$("#lessons"); box.innerHTML="";
+    const all=lists.flatMap(l=>inRange(l,from));
+    const leaders=all.filter(x=>isLeader(x)&&!x.live);
+    const avg=leaders.length? leaders.reduce((a,x)=>a+(Math.min(x.e,NOW)-Math.max(x.s,from)),0)/leaders.length : 0;
+    const winters=all.filter(x=>x.cat==="winter").length;
+    const items=[];
+    if(years<=3) items.push(["🔍","짧게 보면 잘 안 보여요",`${years}년은 이어달리기 한 구간 정도예요. 기간을 10년, 30년, 50년으로 늘려 보면 바통이 여러 번 넘어가는 게 보여요.`]);
+    else items.push(["⏱️","주인공은 보통 몇 년만 달려요", leaders.length?`이 기간 주인공들은 평균 약 ${avg.toFixed(1)}년 동안 바통을 들었어요. 영원한 1등은 없었어요.`:"이 기간엔 바통이 넘어가지 않았어요."]);
+    items.push(["🫧","너무 비싸지면 바통을 넘겨요","모두가 '이건 절대 안 떨어져!'라고 할 때가 위험했어요. 일본 1989년, 대만 1990년, 미국 2000년처럼 거품이 꺼지며 주인공이 바뀌었어요."]);
+    items.push(["🌧️","위기 뒤에 새 주인공이 나와요", winters?`이 기간에 '겨울(위기)'이 ${winters}번 있었고, 겨울이 끝날 때마다 새로운 업종이 바통을 잡았어요.`:"이 기간엔 큰 겨울이 없었지만, 위기가 오면 보통 새 주인공이 나타나요."]);
+    if(years>=100) items.push(["🐢","가장 큰 겨울은 회복도 오래 걸렸어요","미국 대공황(1929년)은 처음 가격을 되찾는 데 25년, 일본 거품(1989년)은 34년이 걸렸어요. 그래서 한 업종이나 한 나라에만 몰빵하지 않는 게 중요해요."]);
+    items.push(["🛟","무서울 땐 금으로 피난","전쟁이나 금융위기처럼 세상이 불안할 때는 금값이 크게 올랐어요(1980년, 2011년, 2026년)."]);
+    items.forEach(([n,h,p])=>{const d=document.createElement("div"); d.className="lesson"; d.innerHTML=`<div class="n">${n}</div><h4>${h}</h4><p>${p}</p>`; box.appendChild(d);});
+    const cb=$("#comeback"); cb.innerHTML="";
+    const counts={};
+    all.filter(x=>!["winter","mix","none","fixed"].includes(x.cat)).forEach(x=>{counts[x.cat]=(counts[x.cat]||0)+1;});
+    const arr=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+    if(!arr.length){cb.innerHTML='<span class="empty">이 기간엔 아직 없어요.</span>';return;}
+    arr.forEach(([k,n])=>{const d=document.createElement("div"); d.className="cb"; d.innerHTML=`<i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${CAT[k].c}"></i>${CAT[k].n} <span class="cnt">${n}번</span>`; cb.appendChild(d);});
+  }
+
+  const sign=c=>c.trim().startsWith("+")?"up":(c.trim().startsWith("-")||c.includes("-"))?"down":"flat";
+
+  function renderShort(){
+    const box=$("#recent"); box.innerHTML="";
+    const pl=per.l;
+    if(mode==="all"){
+      $("#recentTitle").textContent=`🌏 ${pl} 동안 일곱 시장은?`;
+      const t=document.createElement("div"); t.className="tblwrap";
+      let html=`<table class="cmp"><thead><tr><th>시장</th><th>변화</th><th>무슨 일?</th></tr></thead><tbody>`;
+      ORDER.forEach(k=>{const r=R[k][per.k];
+        html+=`<tr class="go" data-k="${k}"><td>${MK[k].f} ${MK[k].n}<br><small>${MK[k].idx}</small></td><td><span class="chg ${sign(r.chg)}">${r.chg}</span></td><td><b>❄️ ${r.winter[0]}</b>${r.hero!==NONE?`<br>🦸 ${r.hero[0]}`:""}</td></tr>`;});
+      const g=R.gold[per.k];
+      html+=`<tr><td>🪙 금</td><td><span class="chg ${sign(g.chg)}">${g.chg}</span></td><td>${g.t}</td></tr></tbody></table>`;
+      t.innerHTML=html; box.appendChild(t);
+      const p=document.createElement("p"); p.className="foot"; p.textContent="줄을 누르면 그 나라 이야기를 자세히 볼 수 있어요."; box.appendChild(p);
+      box.querySelectorAll("tr.go").forEach(tr=>tr.onclick=()=>{const b=document.querySelector(`.chip.mk[data-k="${tr.dataset.k}"]`); if(b) b.click();});
+      box.insertAdjacentHTML("afterbegin",calcAllShortHtml(per.k));
+      return;
+    }
+    const m=MK[mode], r=R[mode][per.k];
+    $("#recentTitle").textContent=`${m.f} ${m.n} · 최근 ${pl} 이야기`;
+    box.innerHTML=`
+      <div class="scorebox"><div><div class="idx">${m.idx}</div><div class="line">${r.line}</div></div><div class="chg big ${sign(r.chg)}">${r.chg}</div></div>
+      <div class="story hero"><h4>🦸 이 기간 잘 버틴 주인공</h4><b>${r.hero[0]}</b><p>${r.hero[1]}</p></div>
+      <div class="story winter"><h4>❄️ 겨울(위기)은 무엇이었나</h4><b>${r.winter[0]}</b><p>${r.winter[1]}</p></div>
+      <div class="story newbie"><h4>🌱 새 주인공이 나왔을까?</h4><b>${r.next[0]}</b><p>${r.next[1]}</p></div>
+      <div class="timeline"><h4>📅 그동안 무슨 일이?</h4>${r.ev.map(([d,t])=>`<div class="ev"><span>${d}</span><p>${t}</p></div>`).join("")}</div>`;
+    const ch=calcShortHtml(mode,per.k);
+    if(ch){
+      const stale=storyStale();
+      box.insertAdjacentHTML("afterbegin",ch+`<h4 class="storyhead">📰 사람이 정리한 이야기 <small>(${STORY_DATE} 기준${stale?" · 오래돼서 접어뒀어요":""})</small></h4>`);
+      if(stale) box.querySelectorAll(".scorebox:not(.calcbox .scorebox),.story,.timeline").forEach(e=>e.style.display="none");
+    }
+  }
+
+  function renderLong(){
+    const from=NOW-years;
+    const host=$("#lanes"); host.innerHTML="";
+    const cw=Math.max(host.clientWidth||300,260);
+    const W=Math.round(Math.max(cw,(NOW-from)*80));
+    if(W>cw+4){const h=document.createElement("p"); h.className="swipe"; h.textContent="👉 옆으로 밀면 옛날 이야기가 나와요"; host.appendChild(h);}
+    const sc=document.createElement("div"); sc.className="scroller";
+    const lanes=document.createElement("div"); lanes.className="scroller-inner"; lanes.style.width=W+"px";
+    sc.appendChild(lanes); host.appendChild(sc);
+    const relay=$("#relay"); relay.innerHTML="";
+    $("#ruleRange").textContent=`최근 ${years}년 기준`;
+    $("#sumRange").textContent=`최근 ${years}년`;
+    let cats=[];
+    const bind=()=>document.querySelectorAll(".seg").forEach(s=>s.onclick=()=>{
+      const [lid,idx]=s.dataset.key.split(":"); const src=lid==="gold"?GOLD:(CALCMAP[lid]||MK[lid].list);
+      if(mode==="all"||CALCMAP[lid]){const old=document.querySelector("#relay .era.pinned"); if(old) old.remove();
+        const c=eraCard(src[+idx],s.dataset.key,CALCMAP[lid]?"🤖":lid==="gold"?"🪙":MK[lid].f); c.classList.add("pinned"); relay.prepend(c);}
+      hiKey=s.dataset.key; highlight(true);});
+    if(mode!=="all"){
+      const m=MK[mode], list=m.list;
+      $("#ribbonTitle").textContent=`${m.f} ${m.n} 바통 지도`;
+      lanes.appendChild(lane(`${m.idx}의 주인공`,list,from,mode,W));
+      if(CALC[mode]){ lanes.appendChild(lane("🤖 데이터로 계산한 주인공 (최근 6개월 성적 1등)",CALC[mode],from,"calc_"+mode,W));
+        lanes.appendChild(lane("🤖 데이터로 찾은 겨울 (최고점보다 20% 넘게 하락)",CALCW[mode],from,"wint_"+mode,W)); }
+      lanes.appendChild(lane("🪙 같은 시기 금은?",GOLD,from,"gold",W));
+      const rows=inRange(list,from);
+      $("#relayTitle").textContent="누가 바통을 들었을까?";
+      $("#relayCount").textContent=`바통 ${Math.max(rows.length-1,0)}번 넘어감`;
+      rows.slice().reverse().forEach(x=>relay.appendChild(eraCard(x,mode+":"+list.indexOf(x))));
+      cats=[...rows,...inRange(GOLD,from)].map(x=>x.cat);
+      summary([[m.f+" "+m.n,list]],from);
+      const cc=$("#calcCard"); const ch=calcLongHtml(mode); cc.style.display=ch?"":"none"; $("#calcLong").innerHTML=ch;
+      if(ch) $("#calcAsof").textContent=`${DATA.markets[mode].last_date} 기준${DATA.demo?" · 가짜 데이터":""}`;
+      lessons([list],from);
+    } else {
+      $("#ribbonTitle").textContent="🌏 일곱 시장과 금 나란히";
+      ORDER.forEach(k=>{lanes.appendChild(lane(`${MK[k].f} ${MK[k].n}`,MK[k].list,from,k,W));
+        if(CALC[k]) lanes.appendChild(lane(`🤖 ${MK[k].f} 데이터로 계산한 주인공`,CALC[k],from,"calc_"+k,W));});
+      { const cc=$("#calcCard"); const parts=Object.keys(CALC).map(k=>`<h3 class="sumflag">${MK[k].f} ${MK[k].n}</h3>`+calcLongHtml(k).split('<h4 class="sub4">')[0]);
+        cc.style.display=parts.length?"":"none"; $("#calcLong").innerHTML=parts.join(""); if(DATA) $("#calcAsof").textContent=`${DATA.asof} 기준${DATA.demo?" · 가짜 데이터":""}`; }
+      lanes.appendChild(lane("🪙 금",GOLD,from,"gold",W));
+      $("#relayTitle").textContent="같은 시기, 누가 달렸을까?";
+      $("#relayCount").textContent="";
+      const st = years<=3?1: years<=10?2: years<=50?5:10;
+      const buckets=[]; for(let y=Math.floor(from); y<NOW; y+=st) buckets.push([Math.max(y,from),Math.min(y+st,NOW)]);
+      const pick=(list,a,b)=>{let best=null,bo=0; list.forEach(x=>{const o=Math.min(x.e,b)-Math.max(x.s,a); if(o>bo){bo=o;best=x;}}); return best;};
+      const pill=x=>x?`<span class="pill" style="background:${CAT[x.cat].c}">${x.em} ${x.short||x.name}</span>`:"—";
+      let html=`<div class="tblwrap"><table class="cmp wide"><thead><tr><th>언제</th>${ORDER.map(k=>`<th>${MK[k].f} ${MK[k].n}</th>`).join("")}</tr></thead><tbody>`;
+      buckets.reverse().forEach(([a,b])=>{
+        const lab=(b-a)<=1.01?`${Math.floor(a)}`:`${Math.floor(a)}~${Math.min(Math.ceil(b)-1,2026)}`;
+        html+=`<tr><td>${lab}${b>=NOW?" ★":""}</td>${ORDER.map(k=>`<td>${pill(pick(MK[k].list,a,b))}</td>`).join("")}</tr>`;});
+      html+=`</tbody></table></div><p class="foot">★ 표시는 지금 진행 중인 기간이에요. 표는 옆으로 밀 수 있어요. 위 바통 지도의 칸을 누르면 여기에 설명 카드가 열려요.</p>`;
+      relay.innerHTML=html;
+      cats=[...ORDER.flatMap(k=>inRange(MK[k].list,from)),...inRange(GOLD,from)].map(x=>x.cat);
+      summary(ORDER.map(k=>[MK[k].f+" "+MK[k].n,MK[k].list]),from);
+      lessons(ORDER.map(k=>MK[k].list),from);
+    }
+    legend(cats); bind(); highlight(false);
+    document.querySelectorAll(".era").forEach(e=>e.onclick=()=>{hiKey=e.dataset.key; highlight(false);});
+    sc.scrollLeft=sc.scrollWidth;
+  }
+
+
+  // ===== 🤖 데이터로 계산한 결과 (docs/data.json) =====
+  let DATA=null; const CALCMAP={}, CALC={}, CALCW={};
+  const pc=x=>x==null?"—":(x>=0?"+":"")+(x*100).toFixed(1)+"%";
+  const toY=s=>{const d=new Date(s+"T00:00:00"); const st=new Date(d.getFullYear(),0,1); return d.getFullYear()+(d-st)/(366*864e5);};
+  const STORY_DATE="2026-11-06";
+  const storyStale=()=>DATA&&DATA.asof>"2026-11-13";
+
+  function buildCalc(){
+    Object.entries(DATA.markets||{}).forEach(([m,md])=>{
+      const last=toY(md.last_date);
+      const eras=(md.eras||[]).map((e,i,a)=>({s:toY(e.start),e:i<a.length-1?toY(a[i+1].start):Math.max(last,NOW),cat:e.cat,em:e.emoji,short:e.name,name:e.name+" (6개월 성적 1등)",
+        when:`${e.start.slice(0,7)} ~ ${e.live?"지금":e.end.slice(0,7)}`,live:e.live,
+        why:`${e.months}달 동안 '최근 6개월 성적 1등'을 지켰어요.${e.gain!=null?` 1등이 되기 6개월 전부터 바통을 넘길 때까지 ${pc(e.gain)} 움직였어요.`:""}`,
+        end:"",next:i<a.length-1?a[i+1].name:"?"}));
+      const ws=(md.winters||[]).map(w=>({s:toY(w.start),e:w.end?toY(w.end):Math.max(last,NOW),cat:"winter",em:"❄️",short:`겨울 ${pc(w.low)}`,
+        name:`${md.bench_name} 겨울 (가장 많이 떨어졌을 때 ${pc(w.low)})`,when:`${w.start.slice(0,7)} ~ ${w.end?w.end.slice(0,7):"지금"}`,live:!w.end,
+        why:`${w.start}에 가장 높았던 ${md.bench_name}가 ${w.trough}에는 ${pc(w.low)}까지 떨어졌어요. ${w.end?`${w.end}에 다시 최고점을 되찾았어요.`:"아직 최고점을 되찾지 못했어요."}`,end:"",next:""}));
+      CALC[m]=eras; CALCW[m]=ws; CALCMAP["calc_"+m]=eras; CALCMAP["wint_"+m]=ws;
+    });
+  }
+
+  function bars(rank){
+    const mx=Math.max(...rank.map(r=>Math.abs(r.ret)),0.0001);
+    return `<div class="bars">${rank.map((r,i)=>`<div class="bar"><span class="bn">${i+1}. ${r.emoji} ${r.name}</span><span class="bt"><i class="${r.ret>=0?"up":"down"}" style="width:${Math.max(2,Math.abs(r.ret)/mx*100)}%"></i></span><span class="bv ${r.ret>=0?"up":"down"}">${pc(r.ret)}</span></div>`).join("")}</div>`;
+  }
+
+  function calcShortHtml(m,k){
+    const md=DATA&&DATA.markets&&DATA.markets[m]; if(!md) return "";
+    const w=md.windows[k]; if(!w) return "";
+    const tag=`${md.last_date} 마감 기준${DATA.demo?" · ⚠️ 가짜 데이터로 만든 테스트 화면":""}`;
+    if(w.note||!w.text) return `<div class="calcbox"><div class="calchead">🤖 데이터로 계산한 결과 <small>${tag}</small></div><p class="ct">${w.note||"계산할 데이터가 아직 부족해요."}</p></div>`;
+    return `<div class="calcbox"><div class="calchead">🤖 데이터로 계산한 결과 <small>${tag}</small></div>
+      <div class="scorebox"><div><div class="idx">${md.bench_name}</div><div class="line">${w.label} 동안 · 업종 평균 ${pc(w.ew)}</div></div><div class="chg big ${w.bench>=0?"up":"down"}">${pc(w.bench)}</div></div>
+      <p class="ct">🦸 ${w.text.hero}</p><p class="ct">${md.season}</p><p class="ct">📊 ${w.text.breadth}</p><p class="ct">😓 ${w.text.worst}</p>
+      <h4 class="sub4">${w.label} 업종 성적표</h4>${bars(w.rank)}
+      ${md.missing&&md.missing.length?`<p class="foot">데이터를 못 받은 업종: ${md.missing.join(", ")}</p>`:""}</div>`;
+  }
+
+  function calcLongHtml(m){
+    const md=DATA&&DATA.markets&&DATA.markets[m]; if(!md) return "";
+    const w=md.windows["y"+years];
+    const eras=md.eras||[]; const cur=eras[eras.length-1];
+    let h=`<p class="ct">${md.season}</p>`;
+    if(cur) h+=`<p class="ct">🏃 지금 바통을 든 업종(최근 6개월 1등): <b>${cur.emoji} ${cur.name}</b> — ${cur.start.slice(0,7)}부터 ${cur.months}달째</p>`;
+    if(w&&w.text) h+=`<p class="ct">🦸 ${w.text.hero}</p><p class="ct">📊 ${w.text.breadth}</p><h4 class="sub4">최근 ${years}년 업종 성적표</h4>${bars(w.rank)}`;
+    else h+=`<p class="foot">업종 데이터는 ${md.since}부터 있어서 '최근 ${years}년' 성적표는 만들 수 없어요. 위의 🤖 바통 지도 줄에서 데이터가 있는 기간을 볼 수 있어요.</p>`;
+    return h;
+  }
+
+  function calcAllShortHtml(k){
+    if(!DATA||!DATA.markets) return "";
+    const rows=Object.entries(DATA.markets).map(([m,md])=>{const w=md.windows[k]; if(!w||!w.rank||!w.rank.length) return "";
+      const t=w.rank[0], b=w.rank[w.rank.length-1];
+      return `<tr><td>${MK[m].f} ${MK[m].n}</td><td><span class="chg ${w.bench>=0?"up":"down"}">${pc(w.bench)}</span></td><td>🦸 ${t.emoji} ${t.name} ${pc(t.ret)}<br>😓 ${b.emoji} ${b.name} ${pc(b.ret)}</td></tr>`;}).join("");
+    if(!rows) return "";
+    return `<div class="calcbox"><div class="calchead">🤖 데이터로 계산한 1등·꼴찌 업종 <small>${DATA.asof} 기준${DATA.demo?" · ⚠️ 가짜 데이터":""}</small></div><div class="tblwrap"><table class="cmp"><thead><tr><th>시장</th><th>지수</th><th>1등 / 꼴찌 업종</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  }
+
+  function render(){
+    const short=!!per.k;
+    document.querySelectorAll(".long").forEach(e=>e.style.display=short?"none":"");
+    document.querySelectorAll(".short").forEach(e=>e.style.display=short?"":"none");
+    $("#perLbl").textContent=short?"짧게 보면 '요즘 무슨 일이?'를, 길게 보면 '바통이 어떻게 넘어갔나'를 보여줘요.":"몇 년 동안의 흐름을 볼까요? (짧은 기간은 맨 앞 1일·1주일·1달·6개월)";
+    if(short) renderShort(); else renderLong();
+  }
+
+  // 용어 풀이
+  $("#gloss").innerHTML=GLOSS.map(([a,b])=>`<div class="gl"><b>${a}</b><p>${b}</p></div>`).join("");
+  $("#notifText").textContent="11월 6일(금) 마감 📣 🇰🇷 코스피 -6.0% 서킷브레이커! 반도체 급락 ❄️ · 🇯🇵 닛케이 -6.0% · 🇹🇼 대만 -4.5% · 🇺🇸 나스닥 +1.1% 반등 · 🇭🇰 홍콩은 이번 주 +5% · 🇸🇬 싱가포르 -2.2% · 🪙 금 이번 주 +4%";
+
+  let _rw=window.innerWidth;
+  window.addEventListener("resize",()=>{ if(Math.abs(window.innerWidth-_rw)>40){_rw=window.innerWidth; if(!per.k) render();} });
+  render();
+  fetch("data.json?v="+Date.now()).then(r=>r.ok?r.json():null).then(d=>{
+    if(!d||!d.markets) return; DATA=d; buildCalc();
+    document.querySelectorAll(".chip.mk").forEach(b=>{ if(d.markets[b.dataset.k]) b.textContent+=" 🤖"; });
+    if(d.phone) $("#notifText").textContent=d.phone.replace(/\n/g," · ");
+    render();
+  }).catch(()=>{});
+
+})();
+</script>
+</body>
+</html>

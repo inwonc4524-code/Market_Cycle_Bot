@@ -1,0 +1,44 @@
+market,key,name,emoji,cat,ticker
+kr,semi,반도체,🧠,semi,091160.KS
+kr,bank,은행,🏦,fin,091170.KS
+kr,sec,증권,📈,fin,102970.KS
+kr,auto,자동차,🚗,cons,091180.KS
+kr,chem,에너지·화학,⚗️,energy,117460.KS
+kr,steel,철강,🔩,ind,117680.KS
+kr,build,건설,🏗️,ind,117700.KS
+kr,heavy,중공업(조선·기계),🚢,ind,139230.KS
+kr,trans,운송(항공·해운),✈️,ind,140710.KS
+kr,health,헬스케어(제약·바이오),🧪,bio,266420.KS
+kr,beauty,화장품,💄,bio,228790.KS
+kr,staples,필수소비재(음식·생활용품),🥫,cons,266410.KS
+kr,battery,2차전지(전기차 배터리),🔋,energy,305540.KS
+kr,defense,방위산업,🛡️,ind,449450.KS
+us,semi,반도체,🧠,semi,SMH
+us,tech,기술(소프트웨어·컴퓨터),💻,tech,XLK
+us,comm,통신서비스(인터넷·미디어),📱,tech,XLC
+us,energy,에너지(석유·가스),🛢️,energy,XLE
+us,fin,금융(은행·보험),🏦,fin,XLF
+us,health,헬스케어(제약·바이오),🧪,bio,XLV
+us,ind,산업재(기계·항공·방위산업),🏭,ind,XLI
+us,disc,경기소비재(자동차·쇼핑),🛍️,cons,XLY
+us,staples,필수소비재(음식·생활용품),🥫,cons,XLP
+us,util,유틸리티(전기·가스·수도),💡,energy,XLU
+us,mat,소재(화학·금속),⛏️,energy,XLB
+us,re,부동산,🏢,fin,XLRE
+jp,food,식품,🍙,cons,1617.T
+jp,energy,에너지 자원,🛢️,energy,1618.T
+jp,build,건설·자재,🏗️,ind,1619.T
+jp,chem,소재·화학,⚗️,energy,1620.T
+jp,pharma,의약품,💊,bio,1621.T
+jp,auto,자동차·수송기계,🚗,cons,1622.T
+jp,steel,철강·비철금속,🔩,ind,1623.T
+jp,mach,기계,⚙️,ind,1624.T
+jp,elec,전기·정밀기기(반도체·전자),🧠,semi,1625.T
+jp,it,정보통신·서비스,📱,tech,1626.T
+jp,power,전력·가스,💡,energy,1627.T
+jp,trans,운수·물류,🚚,ind,1628.T
+jp,trade,종합상사·도매,🏢,fin,1629.T
+jp,retail,소매,🛍️,cons,1630.T
+jp,bank,은행,🏦,fin,1631.T
+jp,fin,금융(은행 제외),💳,fin,1632.T
+jp,re,부동산,🏘️,fin,1633.T

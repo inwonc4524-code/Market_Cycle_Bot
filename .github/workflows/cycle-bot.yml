@@ -1,0 +1,47 @@
+name: 이어달리기 봇
+
+on:
+  schedule:
+    # 한국시간 화~토 오전 7시 33분 — 미국장 마감 뒤 (미국 소식 먼저)
+    - cron: "33 22 * * 1-5"
+    # 한국시간 월~금 오후 4시 47분 — 한국장(3시 30분)·일본장(3시 30분) 마감 뒤
+    - cron: "47 7 * * 1-5"
+  workflow_dispatch: {}   # Actions 화면에서 "Run workflow" 버튼으로 바로 실행
+  push:                   # 업종 목록이나 계산 코드를 고치면 바로 한 번 실행 (알림은 안 보냄)
+    branches: [main]
+    paths: ["analyze.py", "sectors.csv"]
+
+concurrency:
+  group: bot
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: 패키지 설치
+        run: pip install -r requirements.txt
+
+      - name: 업종 계산 + 휴대폰 알림
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          NOTIFY_FOCUS: ${{ github.event.schedule == '33 22 * * 1-5' && 'US' || 'ASIA' }}
+        run: python analyze.py ${{ github.event_name == 'push' && '--no-notify' || '' }}
+
+      - name: 대시보드 저장
+        run: |
+          git config user.name "cycle-bot"
+          git config user.email "cycle-bot@users.noreply.github.com"
+          git add docs
+          git commit -m "이어달리기 대시보드 업데이트 $(TZ=Asia/Seoul date +%F)" || echo "변경 없음"
+          git pull --rebase -X theirs origin main && git push

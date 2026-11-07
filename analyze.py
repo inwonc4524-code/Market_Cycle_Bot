@@ -27,13 +27,17 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 DOCS = os.path.join(ROOT, "docs")
 DASH_URL = "https://inwonc4524-code.github.io/Market_Cycle_Bot/"
 
-# 1단계: 한국·미국·일본 (대만·홍콩·중국 → 2단계, 싱가포르 → 3단계)
+# 1단계: 한국·미국·일본  2단계: 대만·홍콩·중국  (싱가포르 → 3단계)
 BENCH = {
     "kr": ("^KS11", "코스피"),
     "us": ("^GSPC", "S&P500"),
     "jp": ("^N225", "닛케이225"),
+    "tw": ("^TWII", "가권지수"),
+    "hk": ("^HSI", "항셍지수"),
+    "cn": ("000001.SS", "상하이종합지수"),
 }
-FLAG = {"kr": "🇰🇷 한국", "us": "🇺🇸 미국", "jp": "🇯🇵 일본"}
+FLAG = {"kr": "🇰🇷 한국", "us": "🇺🇸 미국", "jp": "🇯🇵 일본",
+        "tw": "🇹🇼 대만", "hk": "🇭🇰 홍콩", "cn": "🇨🇳 중국"}
 GOLD = "GC=F"
 
 WINDOWS = [  # (키, 이름, 거래일 수)
@@ -305,7 +309,8 @@ def phone_message(data, focus, changes):
     lines = []
     for m, old, new in changes:
         lines.append(f"🏃 바통이 넘어갔어요! {FLAG[m]}: {old} → {new}")
-    order = ["us", "kr", "jp"] if focus == "US" else ["kr", "jp", "us"]
+    order = (["us", "kr", "jp", "tw", "hk", "cn"] if focus == "US"
+             else ["kr", "jp", "tw", "hk", "cn", "us"])
     for m in order:
         md = data["markets"].get(m)
         if not md or "d1" not in md["windows"]:

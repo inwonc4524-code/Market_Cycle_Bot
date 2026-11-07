@@ -42,3 +42,36 @@ jp,retail,소매,🛍️,cons,1630.T
 jp,bank,은행,🏦,fin,1631.T
 jp,fin,금융(은행 제외),💳,fin,1632.T
 jp,re,부동산,🏘️,fin,1633.T
+tw,semi,반도체 (TSMC·미디어텍),🧠,semi,2330.TW|2454.TW|2303.TW|3711.TW
+tw,server,인공지능 서버·전자 조립 (폭스콘·콴타),🖥️,tech,2317.TW|2382.TW|3231.TW|2308.TW
+tw,optic,스마트폰 부품·광학,📷,tech,3008.TW|2474.TW|3406.TW
+tw,fin,금융 (은행·보험),🏦,fin,2881.TW|2882.TW|2891.TW|2886.TW
+tw,ship,해운 (컨테이너선),🚢,ind,2603.TW|2609.TW|2615.TW
+tw,chem,석유화학·플라스틱,⚗️,energy,1301.TW|1303.TW|1326.TW|6505.TW
+tw,steel,철강,🔩,ind,2002.TW|2027.TW
+tw,tele,통신,📡,tech,2412.TW|3045.TW|4904.TW
+tw,food,식품·편의점,🥫,cons,1216.TW|2912.TW
+tw,textile,섬유·신발,👟,cons,1402.TW|9910.TW|9904.TW
+hk,internet,인터넷·플랫폼 (텐센트·알리바바),📱,tech,0700.HK|9988.HK|3690.HK|9618.HK|9999.HK
+hk,fin,은행·보험,🏦,fin,0005.HK|0939.HK|1398.HK|1299.HK|2318.HK
+hk,re,부동산,🏢,fin,0016.HK|1109.HK|0688.HK|1113.HK
+hk,ev,전기차·자동차,🚗,cons,1211.HK|2015.HK|9868.HK|0175.HK
+hk,semi,반도체,🧠,semi,0981.HK|1347.HK
+hk,energy,에너지 (석유·석탄),🛢️,energy,0883.HK|0857.HK|0386.HK|1088.HK
+hk,tele,통신,📡,tech,0941.HK|0728.HK|0762.HK
+hk,consumer,새 소비 (인형·스포츠·맥주),🧸,cons,9992.HK|2020.HK|2331.HK|0291.HK
+hk,bio,헬스케어 (제약·바이오),🧪,bio,2269.HK|1177.HK|1093.HK|6160.HK
+hk,casino,카지노 (마카오),🎰,cons,0027.HK|1928.HK
+hk,util,유틸리티 (전기·가스),💡,energy,0002.HK|0003.HK|0006.HK
+cn,liquor,백주·식음료 (마오타이),🍶,cons,600519.SS|000858.SZ|000568.SZ|600887.SS
+cn,bank,은행,🏦,fin,601398.SS|600036.SS|601288.SS|601166.SS
+cn,insure,보험·증권,💳,fin,601318.SS|600030.SS|601628.SS
+cn,newenergy,전기차 배터리·태양광 (CATL),🔋,energy,300750.SZ|601012.SS|300274.SZ|002594.SZ
+cn,semi,반도체·인공지능 칩,🧠,semi,688981.SS|688256.SS|603501.SS|002371.SZ
+cn,elec,전자·통신장비,📡,tech,000063.SZ|002475.SZ|300308.SZ
+cn,re,부동산·건설,🏗️,ind,000002.SZ|600048.SS|601668.SS
+cn,energy,에너지 (석탄·석유),🛢️,energy,601088.SS|600028.SS|601857.SS
+cn,appliance,가전 (메이디·거리),🧊,cons,000333.SZ|000651.SZ|600690.SS
+cn,pharma,의약·바이오,💊,bio,600276.SS|300760.SZ|603259.SS
+cn,metal,금·비철금속 (광산),⛏️,energy,601899.SS|603993.SS
+cn,defense,방위산업·항공,✈️,ind,600760.SS|600893.SS

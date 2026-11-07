@@ -94,16 +94,35 @@ def fetch_prices(tickers):
 
 
 def basket(prices, ticker):
-    """'A|B|C' 처럼 여러 회사를 묶은 업종은 똑같은 비중으로 섞은 가격을 만들어요.
-    (거래가 적은 업종 ETF 대신 대표 회사 몇 곳으로 업종을 계산할 때 써요)"""
-    parts = [prices[t] for t in ticker.split("|") if t in prices]
+    """'A|B|C' 처럼 여러 회사를 묶은 업종의 가격을 만들어요.
+    처음에 똑같은 돈을 나눠 넣고 그대로 들고 있는 방식(사서 보유)으로 계산해서,
+    가격 데이터에 하루짜리 오류가 있어도 결과가 크게 틀어지지 않게 했어요.
+    하루에 60% 넘게 움직인 값은 데이터 오류로 보고 0으로 처리해요.
+    중간에 상장한 회사는 그날의 업종 평균 금액만큼 새로 넣어요 (계단 없이 이어 붙임)."""
+    parts = {t: prices[t] for t in ticker.split("|") if t in prices}
     if not parts:
         return None
     df = pd.concat(parts, axis=1, sort=True).ffill(limit=5)
-    r = df.pct_change(fill_method=None).mean(axis=1, skipna=True).fillna(0)
-    first = df.dropna(how="all").index[0]
-    r = r[r.index >= first]
-    return 100 * (1 + r).cumprod()
+    r = df.pct_change(fill_method=None)
+    r = r.where(r.abs() <= 0.6, 0.0)
+    level = 100.0
+    hold2 = {}
+    out = []
+    for d in df.index:
+        row = df.loc[d]
+        before = sum(hold2.values())
+        for t in list(hold2):
+            x = r.at[d, t]
+            if pd.notna(x):
+                hold2[t] *= 1 + x
+        after = sum(hold2.values())
+        if before > 0:
+            level *= after / before
+        for t in df.columns:
+            if t not in hold2 and pd.notna(row[t]):
+                hold2[t] = (after / len(hold2)) if hold2 else 1.0
+        out.append(level if hold2 else np.nan)
+    return pd.Series(out, index=df.index).dropna()
 
 
 def demo_prices(tickers, seed=11):

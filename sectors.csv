@@ -25,7 +25,7 @@ us,staples,필수소비재(음식·생활용품),🥫,cons,XLP
 us,util,유틸리티(전기·가스·수도),💡,energy,XLU
 us,mat,소재(화학·금속),⛏️,energy,XLB
 us,re,부동산,🏢,fin,XLRE
-jp,food,식품,🍙,cons,1617.T
+jp,food,식품,🍙,cons,2914.T|2802.T|2502.T|2503.T|2269.T
 jp,energy,에너지 자원,🛢️,energy,1618.T
 jp,build,건설·자재,🏗️,ind,1619.T
 jp,chem,소재·화학,⚗️,energy,1620.T

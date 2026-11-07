@@ -88,6 +88,19 @@ def fetch_prices(tickers):
     return out
 
 
+def basket(prices, ticker):
+    """'A|B|C' 처럼 여러 회사를 묶은 업종은 똑같은 비중으로 섞은 가격을 만들어요.
+    (거래가 적은 업종 ETF 대신 대표 회사 몇 곳으로 업종을 계산할 때 써요)"""
+    parts = [prices[t] for t in ticker.split("|") if t in prices]
+    if not parts:
+        return None
+    df = pd.concat(parts, axis=1, sort=True).ffill(limit=5)
+    r = df.pct_change(fill_method=None).mean(axis=1, skipna=True).fillna(0)
+    first = df.dropna(how="all").index[0]
+    r = r[r.index >= first]
+    return 100 * (1 + r).cumprod()
+
+
 def demo_prices(tickers, seed=11):
     """인터넷 없이 테스트할 때 쓰는 가짜 가격 (업종마다 1등 시기가 바뀌게)."""
     rng = np.random.default_rng(seed)
@@ -333,8 +346,14 @@ def main():
     args = ap.parse_args()
 
     sectors = load_sectors()
-    tickers = sorted({s["ticker"] for s in sectors} | {b[0] for b in BENCH.values()} | {GOLD})
+    singles = {t for s in sectors for t in s["ticker"].split("|")}
+    tickers = sorted(singles | {b[0] for b in BENCH.values()} | {GOLD})
     prices = demo_prices(tickers) if args.demo else fetch_prices(tickers)
+    for s in sectors:                      # 여러 회사를 묶은 업종 만들기
+        if "|" in s["ticker"]:
+            b = basket(prices, s["ticker"])
+            if b is not None:
+                prices[s["ticker"]] = b
 
     now = datetime.now(KST)
     data = {"generated": now.strftime("%Y-%m-%d %H:%M"), "demo": args.demo, "markets": {}}

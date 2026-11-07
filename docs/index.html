@@ -859,7 +859,7 @@ h1,h2,h3,.jua{font-family:"Jua","Noto Sans KR",sans-serif;font-weight:400;letter
       $("#ribbonTitle").textContent=`${m.f} ${m.n} 바통 지도`;
       lanes.appendChild(lane(`${m.idx}의 주인공`,list,from,mode,W));
       if(CALC[mode]){ lanes.appendChild(lane("🤖 데이터로 계산한 주인공 (최근 6개월 성적 1등)",CALC[mode],from,"calc_"+mode,W));
-        lanes.appendChild(lane("🤖 데이터로 찾은 겨울 (최고점보다 20% 넘게 하락)",CALCW[mode],from,"wint_"+mode,W)); }
+        lanes.appendChild(lane("🤖 데이터로 찾은 겨울 (최근 5년 최고점보다 20% 넘게 하락)",CALCW[mode],from,"wint_"+mode,W)); }
       lanes.appendChild(lane("🪙 같은 시기 금은?",GOLD,from,"gold",W));
       const rows=inRange(list,from);
       $("#relayTitle").textContent="누가 바통을 들었을까?";
@@ -915,7 +915,7 @@ h1,h2,h3,.jua{font-family:"Jua","Noto Sans KR",sans-serif;font-weight:400;letter
         end:"",next:i<a.length-1?a[i+1].name:"?"}));
       const ws=(md.winters||[]).map(w=>({s:toY(w.start),e:w.end?toY(w.end):Math.max(last,NOW),cat:"winter",em:"❄️",short:`겨울 ${pc(w.low)}`,
         name:`${md.bench_name} 겨울 (가장 많이 떨어졌을 때 ${pc(w.low)})`,when:`${w.start.slice(0,7)} ~ ${w.end?w.end.slice(0,7):"지금"}`,live:!w.end,
-        why:`${w.start}에 가장 높았던 ${md.bench_name}가 ${w.trough}에는 ${pc(w.low)}까지 떨어졌어요. ${w.end?`${w.end}에 다시 최고점을 되찾았어요.`:"아직 최고점을 되찾지 못했어요."}`,end:"",next:""}));
+        why:`최근 5년 중 ${w.start}에 가장 높았던 ${md.bench_name}가 ${w.trough}에는 ${pc(w.low)}까지 떨어졌어요. ${w.end?`${w.end}에 겨울이 끝났어요(최근 5년 최고점을 되찾았거나, 5년이 지나 기준이 바뀌었어요).`:"아직 겨울이 이어지고 있어요."}`,end:"",next:""}));
       CALC[m]=eras; CALCW[m]=ws; CALCMAP["calc_"+m]=eras; CALCMAP["wint_"+m]=ws;
     });
   }

@@ -49,7 +49,8 @@ WINDOWS = [  # (키, 이름, 거래일 수)
 LEAD_DAYS = 126     # 바통 판단: 최근 6개월 성적 1등
 MIN_HOLD = 2        # 2달 이상 1등을 지켜야 '바통을 잡았다'고 봐요 (잠깐 1등은 무시)
 MIN_SECTORS = 3     # 업종이 3개 이상 있을 때부터 계산
-WINTER = -0.20      # 최고점보다 20% 넘게 하락 = 겨울
+WINTER = -0.20      # 최근 5년 최고점보다 20% 넘게 하락 = 겨울
+PEAK_DAYS = 1260    # 겨울 판단 기준: 최근 5년(약 1,260 거래일) 안의 최고점
 CORRECTION = -0.10  # 10% 넘게 하락 = 조정
 
 
@@ -275,44 +276,45 @@ def baton_eras(sectors, prices, bench):
 
 
 def winters(bench):
-    """대표 지수가 최고점보다 20% 넘게 떨어졌던 때(겨울)를 찾아요."""
+    """대표 지수가 '최근 5년 안의 최고점'보다 20% 넘게 떨어졌던 때(겨울)를 찾아요.
+    (아주 오래전 최고점 하나 때문에 몇십 년째 겨울로 나오지 않게, 일곱 나라 모두 같은 잣대)"""
     s = bench.dropna()
-    peak_val, peak_day = s.iloc[0], s.index[0]
+    roll = s.rolling(PEAK_DAYS, min_periods=1).max()
+    dd = s / roll - 1
     out, cur = [], None
-    for d, v in s.items():
-        if v >= peak_val:
+    for d, v in dd.items():
+        if v >= -1e-9:
             if cur:
                 cur["end"] = d.strftime("%Y-%m-%d")
                 out.append(cur)
                 cur = None
-            peak_val, peak_day = v, d
             continue
-        dd = v / peak_val - 1
-        if dd <= WINTER and cur is None:
-            cur = {"start": peak_day.strftime("%Y-%m-%d"), "end": None,
-                   "trough": d.strftime("%Y-%m-%d"), "low": round(float(dd), 4)}
-        if cur and dd < cur["low"]:
-            cur["low"], cur["trough"] = round(float(dd), 4), d.strftime("%Y-%m-%d")
+        if v <= WINTER and cur is None:
+            win = s.loc[:d].iloc[-PEAK_DAYS:]
+            cur = {"start": win.idxmax().strftime("%Y-%m-%d"), "end": None,
+                   "trough": d.strftime("%Y-%m-%d"), "low": round(float(v), 4)}
+        if cur and v < cur["low"]:
+            cur["low"], cur["trough"] = round(float(v), 4), d.strftime("%Y-%m-%d")
     if cur:
         out.append(cur)
-    now_dd = float(s.iloc[-1] / s.cummax().iloc[-1] - 1)
-    pk = s.idxmax() if s.iloc[-1] < s.max() else s.index[-1]
-    return out, {"dd": round(now_dd, 4), "peak_date": pk.strftime("%Y-%m-%d"),
-                 "peak": round(float(s.max()), 2), "last": round(float(s.iloc[-1]), 2)}
+    win = s.iloc[-PEAK_DAYS:]
+    pk = win.idxmax()
+    return out, {"dd": round(float(s.iloc[-1] / win.max() - 1), 4), "peak_date": pk.strftime("%Y-%m-%d"),
+                 "peak": round(float(win.max()), 2), "last": round(float(s.iloc[-1]), 2)}
 
 
 def season_text(market, now):
     bname = BENCH[market][1]
     dd = now["dd"]
     if dd <= WINTER:
-        return (f"❄️ {iga(bname)} 가장 높았던 {now['peak_date']}보다 {abs(dd) * 100:.0f}% 낮아요. "
+        return (f"❄️ {iga(bname)} 최근 5년 중 가장 높았던 {now['peak_date']}보다 {abs(dd) * 100:.0f}% 낮아요. "
                 "20% 넘게 떨어져서 지금은 '겨울'이에요.")
     if dd <= CORRECTION:
-        return (f"🌧️ {iga(bname)} 가장 높았던 {now['peak_date']}보다 {abs(dd) * 100:.0f}% 낮아요. "
+        return (f"🌧️ {iga(bname)} 최근 5년 중 가장 높았던 {now['peak_date']}보다 {abs(dd) * 100:.0f}% 낮아요. "
                 "10% 넘게 떨어진 '조정' 중이에요. 아직 겨울은 아니에요.")
     if dd > -0.02:
-        return f"☀️ {iga(bname)} 가장 높은 곳 근처에 있어요. 따뜻한 날씨예요."
-    return f"🌤️ {iga(bname)} 최고점보다 {abs(dd) * 100:.0f}% 아래예요. 큰 겨울은 아니에요."
+        return f"☀️ {iga(bname)} 최근 5년 중 가장 높은 곳 근처에 있어요. 따뜻한 날씨예요."
+    return f"🌤️ {iga(bname)} 최근 5년 최고점보다 {abs(dd) * 100:.0f}% 아래예요. 큰 겨울은 아니에요."
 
 
 # ───────────────────────── 3. 알림 ─────────────────────────

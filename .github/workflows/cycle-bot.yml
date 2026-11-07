@@ -7,9 +7,9 @@ on:
     # 한국시간 월~금 오후 6시 23분 — 한국·일본·대만·중국·홍콩·싱가포르장 모두 마감 뒤
     - cron: "23 9 * * 1-5"
   workflow_dispatch: {}   # Actions 화면에서 "Run workflow" 버튼으로 바로 실행
-  push:                   # 업종 목록이나 계산 코드를 고치면 바로 한 번 실행 (알림은 안 보냄)
-    branches: [main]
-    paths: ["analyze.py", "sectors.csv"]
+  push:                   # 업종 목록이나 계산 코드를 고치면 바로 한 번 실행
+    branches: [main]      # (알림은 커밋 메시지에 [알림]이 있을 때만 보냄)
+    paths: ["analyze.py", "sectors.csv", ".github/workflows/cycle-bot.yml"]
 
 concurrency:
   group: bot
@@ -36,7 +36,7 @@ jobs:
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           NOTIFY_FOCUS: ${{ github.event.schedule == '33 22 * * 1-5' && 'US' || 'ASIA' }}
-        run: python analyze.py ${{ github.event_name == 'push' && '--no-notify' || '' }}
+        run: python analyze.py ${{ github.event_name == 'push' && !contains(github.event.head_commit.message, '[알림]') && '--no-notify' || '' }}
 
       - name: 대시보드 저장
         run: |

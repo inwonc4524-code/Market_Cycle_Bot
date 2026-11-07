@@ -23,6 +23,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main   # 앞선 실행이 저장한 최신 결과(바통 기억)부터 이어서 계산
 
       - uses: actions/setup-python@v5
         with:

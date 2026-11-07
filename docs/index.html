@@ -26,7 +26,7 @@ h1,h2,h3,.jua{font-family:"Jua","Noto Sans KR",sans-serif;font-weight:400;letter
 .notif{background:#1F2430;color:#fff;border-radius:18px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start;box-shadow:0 6px 18px rgba(0,0,0,.12);margin-bottom:16px}
 .notif .ic{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#FFB86B,#FF7A45);display:grid;place-items:center;font-size:18px;flex:none}
 .notif .t{font-size:12px;opacity:.7;display:flex;justify-content:space-between}
-.notif .m{font-size:14px;line-height:1.45;margin-top:2px}
+.notif .m{font-size:14px;line-height:1.55;margin-top:2px;white-space:pre-line}
 
 .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px;margin-bottom:14px}
 .explain{display:flex;gap:12px;align-items:center}
@@ -975,7 +975,7 @@ h1,h2,h3,.jua{font-family:"Jua","Noto Sans KR",sans-serif;font-weight:400;letter
   fetch("data.json?v="+Date.now()).then(r=>r.ok?r.json():null).then(d=>{
     if(!d||!d.markets) return; DATA=d; buildCalc();
     document.querySelectorAll(".chip.mk").forEach(b=>{ if(d.markets[b.dataset.k]) b.textContent+=" 🤖"; });
-    if(d.phone) $("#notifText").textContent=d.phone.replace(/\n/g," · ");
+    if(d.phone) $("#notifText").textContent=d.phone;
     render();
   }).catch(()=>{});
 

@@ -311,7 +311,15 @@ def yearly_mix(secs, capser, bench, gold_local):
         for k in set(a_["w"]) & set(b_["w"]):
             x, y2 = a_["w"][k], b_["w"][k]
             if abs(y2 - x) > 0.15 and (y2 > 2.5 * x or x > 2.5 * y2):
-                warnings.append(f"{b_['y']} {k}: {x:.1%} → {y2:.1%}")
+                df = sector_caps[k]
+                comp = {}
+                for t in df.columns:          # 원인 찾기용: 회사별 덩치(그해 말)
+                    v0 = df[t][df.index <= a_["date"]].dropna()
+                    v1 = df[t][df.index <= b_["date"]].dropna()
+                    comp[t] = [round(float(v0.iloc[-1]) / 1e9, 2) if len(v0) else None,
+                               round(float(v1.iloc[-1]) / 1e9, 2) if len(v1) else None]
+                warnings.append({"year": b_["y"], "sector": k, "from": round(x, 4), "to": round(y2, 4),
+                                 "companies_bn": comp})
     return {"base": years[0]["y"], "gold_start": GOLD_START,
             "share_hist": round(with_hist / used, 2) if used else 0,
             "warnings": warnings,

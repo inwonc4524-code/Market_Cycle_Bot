@@ -50,6 +50,7 @@ WINDOWS = [  # (키, 이름, 거래일 수)
     ("y10", "10년", 2520), ("y20", "20년", 5040),
 ]
 LEAD_DAYS = 126     # 바통 판단: 최근 6개월 성적 1등
+JOIN_WAIT = 60                 # 묶음에 새 회사를 넣기까지 기다리는 거래일 수
 MIN_HOLD = 3        # 3달 이상 1등을 지켜야 '바통을 잡았다'고 봐요 (잠깐 1등은 무시)
 MIN_SECTORS = 3     # 업종이 3개 이상 있을 때부터 계산
 WINTER = -0.20      # 최근 5년 최고점보다 20% 넘게 하락 = 겨울
@@ -132,6 +133,14 @@ def basket(prices, ticker):
     level = 100.0
     hold2 = {}
     out = []
+    # 새로 상장한 회사는 상장 후 60거래일이 지난 뒤에 넣어요.
+    # (중국은 상장 직후 몇 주 동안 상한가가 계속되는데, 그 값은 실제로 살 수 없는 가격이라 수익이 부풀려져요)
+    ready = {}
+    for t in df.columns:
+        first = df[t].first_valid_index()
+        if first is not None:
+            pos = df.index.get_loc(first)
+            ready[t] = df.index[min(pos + JOIN_WAIT, len(df.index) - 1)]
     for d in df.index:
         row = df.loc[d]
         before = sum(hold2.values())
@@ -143,7 +152,7 @@ def basket(prices, ticker):
         if before > 0:
             level *= after / before
         for t in df.columns:
-            if t not in hold2 and pd.notna(row[t]):
+            if t not in hold2 and pd.notna(row[t]) and (not hold2 or d >= ready.get(t, d)):
                 hold2[t] = (after / len(hold2)) if hold2 else 1.0
         out.append(level if hold2 else np.nan)
     return pd.Series(out, index=df.index).dropna()

@@ -985,6 +985,12 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
   // ===== 🍩 해마다 업종 비중 링 (금 포함) =====
   const PAL=["#6C5CE7","#E17055","#00B894","#0984E3","#E84393","#00CEC9","#D63031","#636E72","#A29BFE","#27AE60","#FAB1A0","#74B9FF","#B33771","#3B3B98","#58B19F","#F97F51","#25CCF7","#8E44AD","#2D3436","#C0392B"];
   const GOLDC="#D4A017";
+  // 같은 뜻의 업종은 어느 나라에서나 같은 색 (예: 반도체=보라, 은행=초록, 헬스케어=빨강)
+  const SCOL={"semi": "#6C5CE7", "tech": "#0984E3", "it": "#0984E3", "internet": "#0984E3", "comm": "#74B9FF", "tele": "#74B9FF", "server": "#00CEC9", "optic": "#9AECDB", "bank": "#27AE60", "fin": "#B8E994", "sec": "#006266", "insure": "#006266", "exchange": "#006266", "trade": "#596275", "energy": "#2D3436", "chem": "#7F8C8D", "steel": "#C8D6E5", "mat": "#A0522D", "metal": "#A0522D", "util": "#F368E0", "power": "#F368E0", "health": "#D63031", "pharma": "#D63031", "bio": "#D63031", "beauty": "#FD79A8", "auto": "#E17055", "disc": "#E17055", "ev": "#E17055", "battery": "#C4E538", "newenergy": "#C4E538", "re": "#B33771", "dev": "#B33771", "reit": "#FD79A8", "build": "#E0C38C", "ind": "#3B3B98", "heavy": "#3B3B98", "mach": "#3B3B98", "marine": "#3B3B98", "conglo": "#786FA6", "defense": "#4B6584", "trans": "#833471", "ship": "#833471", "travel": "#833471", "staples": "#6F4E37", "food": "#6F4E37", "liquor": "#6F4E37", "agri": "#6F4E37", "retail": "#F3A683", "consumer": "#F3A683", "casino": "#3DC1D3", "appliance": "#F3A683", "textile": "#F3A683"};
+  function secColor(k,name,i){
+    if(k==="elec") return String(name).includes("반도체")?SCOL.semi:"#00CEC9";
+    return SCOL[k]||PAL[i%PAL.length];
+  }
   let mixYear=null;
   const pc0=x=>(x*100).toFixed(x<0.1?1:0)+"%";
 
@@ -1013,7 +1019,7 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
   function mixParts(mix,yr){
     const keys=Object.keys(mix.sectors);
     const parts=[{k:"gold",v:yr.gold,c:GOLDC,t:`🪙 금 ${pc0(yr.gold)}`,e:"🪙",n:"금"}];
-    keys.forEach((k,i)=>{const v=yr.w[k]||0; const s=mix.sectors[k]; parts.push({k,v,c:PAL[i%PAL.length],t:`${s.emoji} ${s.name} ${pc0(v)}`,e:s.emoji,n:s.name});});
+    keys.forEach((k,i)=>{const v=yr.w[k]||0; const s=mix.sectors[k]; parts.push({k,v,c:secColor(k,s.name,i),t:`${s.emoji} ${s.name} ${pc0(v)}`,e:s.emoji,n:s.name});});
     return parts;
   }
   function topSector(mix,yr){let best=null; Object.entries(yr.w).forEach(([k,v])=>{if(!best||v>best[1]) best=[k,v];}); return best?{...mix.sectors[best[0]],v:best[1]}:null;}

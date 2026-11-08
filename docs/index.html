@@ -168,6 +168,14 @@ h1,h2,h3,.jua{font-family:"Jua","Noto Sans KR",sans-serif;font-weight:400;letter
 .mixgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
 .mixmini{display:flex;flex-direction:column;align-items:center;gap:2px;background:#FBF7F0;border-radius:16px;padding:10px;cursor:pointer;font-size:12.5px;text-align:center}
 .mixmini b{font-family:"Jua",sans-serif;font-weight:400;font-size:15px}
+
+.yslide{display:flex;align-items:center;gap:10px;margin:4px 0 2px}
+.yplay{flex:none;width:40px;height:40px;border-radius:50%;border:0;background:var(--ink);color:#fff;font-size:16px;cursor:pointer}
+.yrange{flex:1}
+.yrange input[type=range]{width:100%;accent-color:#FF7A45;height:28px;cursor:pointer}
+.yends{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted)}
+.yends b{font-family:"Jua",sans-serif;font-weight:400;font-size:17px;color:var(--ink)}
+#mixRing{touch-action:pan-y;cursor:grab;user-select:none}
 </style>
 </head>
 <body>
@@ -1025,37 +1033,57 @@ h1,h2,h3,.jua{font-family:"Jua","Noto Sans KR",sans-serif;font-weight:400;letter
     if(!mix||!mix.years||!mix.years.length){card.style.display="none";return;}
     card.style.display="";
     const ys=mix.years; let idx=ys.findIndex(y=>y.y===mixYear); if(idx<0) idx=ys.length-1;
-    const yr=ys[idx], prev=idx>0?ys[idx-1]:null, first=ys[0];
-    const parts=mixParts(mix,yr);
-    const t=topSector(mix,yr), t0=topSector(mix,first);
+    const first=ys[0], t0=topSector(mix,first);
     $("#mixNote").textContent=`${first.y}년 ~ 지금`;
-    const rows=parts.filter(p=>p.v>0).sort((a,b)=>b.v-a.v).map(p=>{
-      const pv=prev?(p.k==="gold"?prev.gold:(prev.w[p.k]||0)):null;
-      const d=pv==null?"":(p.v-pv);
-      const ds=d===""?"":Math.abs(d)<0.0005?'<span class="dz">–</span>':`<span class="${d>0?"dup":"ddn"}">${d>0?"▲":"▼"}${(Math.abs(d)*100).toFixed(1)}</span>`;
-      const isNew=prev&&p.k!=="gold"&&!(p.k in prev.w);
-      return `<div class="mrow"><i style="background:${p.c}"></i><span class="mn">${p.e} ${p.n}${isNew?' <small class="newb">새로 등장</small>':""}</span><span class="mv">${pc0(p.v)}</span><span class="md">${ds}</span></div>`;}).join("");
-    let story="";
-    if(t&&t0){
-      story+= t0.name===t.name
-        ? `<p class="ct">🍩 ${first.y}년에도, ${ylab(yr)}에도 가장 큰 조각은 <b>${t.emoji} ${ieyo(t.name)}</b>. (${pc0(t0.v)} → ${pc0(t.v)})</p>`
-        : `<p class="ct">🍩 ${first.y}년엔 <b>${t0.emoji} ${iga(t0.name)}</b> 가장 큰 조각(${pc0(t0.v)})이었는데, ${ylab(yr)}엔 <b>${t.emoji} ${iga(t.name)}</b> 가장 큰 조각(${pc0(t.v)})이에요.</p>`;
-    }
-    const gd=yr.gold-mix.gold_start;
-    story+=`<p class="ct">🪙 ${mix.base}년 말에 돈의 ${pc0(mix.gold_start)}를 금으로 들고 시작했다면, ${ylab(yr)}엔 금이 <b>${pc0(yr.gold)}</b>예요. ${Math.abs(gd)<0.005?"금과 주식이 비슷하게 달렸어요.":gd>0?"금이 이 나라 주식보다 더 잘 달려서 조각이 커졌어요.":"이 나라 주식이 금보다 더 잘 달려서 금 조각이 작아졌어요."}</p>`;
-    const chips=ys.map((y,i)=>`<button class="ychip${i===idx?" on":""}" data-i="${i}">${y.now?"지금":y.y}</button>`).join("");
-    const minis=ys.map((y,i)=>`<div class="mmini${i===idx?" on":""}" data-i="${i}">${donutSvg(mixParts(mix,y),64,"","")}<span>${y.now?"지금":y.y}</span></div>`).join("");
-    box.innerHTML=`<div class="mixmain"><div class="mixring">${donutSvg(parts,230,ylab(yr).replace(" (지금)",""),t?`${t.emoji} ${t.name.length>8?t.name.slice(0,8)+"…":t.name}`:"")}</div>
-      <div class="mixleg"><div class="mrow mh"><i></i><span class="mn">조각</span><span class="mv">비중</span><span class="md">${prev?`${prev.y}년보다`:""}</span></div>${rows}</div></div>
-      <p class="lbl">몇 년도의 링을 볼까요?</p><div class="chips ychips">${chips}</div>
-      ${story}
+    const minis=ys.map((y,i)=>`<div class="mmini" data-i="${i}">${donutSvg(mixParts(mix,y),64,"","")}<span>${y.now?"지금":y.y}</span></div>`).join("");
+    box.innerHTML=`<div class="mixmain"><div class="mixring" id="mixRing" title="옆으로 끌면 연도가 바뀌어요"></div><div class="mixleg" id="mixLeg"></div></div>
+      <div class="yslide">
+        <button class="yplay" id="yPlay" aria-label="재생">▶</button>
+        <div class="yrange"><input type="range" id="yRange" min="0" max="${ys.length-1}" step="1" value="${idx}">
+          <div class="yends"><span>${first.y}</span><b id="yNow"></b><span>지금</span></div></div>
+      </div>
+      <p class="foot" style="margin-top:2px">👆 막대를 옆으로 끌거나, 링을 손가락으로 좌우로 밀면 연도가 바뀌어요. ▶를 누르면 처음부터 지금까지 저절로 넘어가요.</p>
+      <div id="mixStory"></div>
       <p class="lbl" style="margin-top:12px">👉 해마다 링이 어떻게 바뀌었는지 (누르면 크게)</p><div class="mministrip">${minis}</div>
       <p class="foot">업종마다 대표 회사들의 덩치(시가총액 = 주가 × 주식 수)로 계산한 대략값이에요. 회사의 '과거 주식 수' 기록이 있으면 그걸로 계산하고(이 나라 대표 회사의 ${Math.round((mix.share_hist||0)*100)}%), 기록이 없으면 '지금 덩치 × 그때 주가 ÷ 지금 주가'로 거꾸로 계산해요. 주식 수 기록은 보통 2010년 무렵부터 있어서, 그 전 해는 가장 오래된 기록의 주식 수를 써요. 아직 상장 전이던 회사는 그해에 빠져요. 금 칸은 ${mix.base}년 말에 '주식 90 : 금 10'으로 시작했다고 가정하고, 그 나라 돈으로 바꾼 금값과 대표 지수의 변화로 계산해요.</p>`;
-    const pick=i=>{mixYear=ys[+i].y; renderMix();};
-    box.querySelectorAll(".ychip").forEach(b=>b.onclick=()=>pick(b.dataset.i));
-    box.querySelectorAll(".mmini").forEach(b=>b.onclick=()=>pick(b.dataset.i));
-    const yc=box.querySelector(".ychips"), on=yc.querySelector(".on"); if(on) yc.scrollLeft=on.offsetLeft-40;
-    const ms=box.querySelector(".mministrip"), mon=ms.querySelector(".on"); if(mon) ms.scrollLeft=mon.offsetLeft-40;
+    const range=box.querySelector("#yRange"), ms=box.querySelector(".mministrip");
+    const show=i=>{
+      i=Math.max(0,Math.min(ys.length-1,+i)); idx=i; mixYear=ys[i].y;
+      const yr=ys[i], prev=i>0?ys[i-1]:null, parts=mixParts(mix,yr), t=topSector(mix,yr);
+      box.querySelector("#mixRing").innerHTML=donutSvg(parts,230,ylab(yr).replace(" (지금)",""),t?`${t.emoji} ${t.name.length>8?t.name.slice(0,8)+"…":t.name}`:"");
+      const rows=parts.filter(p=>p.v>0).sort((a,b)=>b.v-a.v).map(p=>{
+        const pv=prev?(p.k==="gold"?prev.gold:(prev.w[p.k]||0)):null;
+        const d=pv==null?"":(p.v-pv);
+        const ds=d===""?"":Math.abs(d)<0.0005?'<span class="dz">–</span>':`<span class="${d>0?"dup":"ddn"}">${d>0?"▲":"▼"}${(Math.abs(d)*100).toFixed(1)}</span>`;
+        const isNew=prev&&p.k!=="gold"&&!(p.k in prev.w);
+        return `<div class="mrow"><i style="background:${p.c}"></i><span class="mn">${p.e} ${p.n}${isNew?' <small class="newb">새로 등장</small>':""}</span><span class="mv">${pc0(p.v)}</span><span class="md">${ds}</span></div>`;}).join("");
+      box.querySelector("#mixLeg").innerHTML=`<div class="mrow mh"><i></i><span class="mn">조각</span><span class="mv">비중</span><span class="md">${prev?`${prev.y}년보다`:""}</span></div>${rows}`;
+      let story="";
+      if(t&&t0){
+        story+= t0.name===t.name
+          ? `<p class="ct">🍩 ${first.y}년에도, ${ylab(yr)}에도 가장 큰 조각은 <b>${t.emoji} ${ieyo(t.name)}</b>. (${pc0(t0.v)} → ${pc0(t.v)})</p>`
+          : `<p class="ct">🍩 ${first.y}년엔 <b>${t0.emoji} ${iga(t0.name)}</b> 가장 큰 조각(${pc0(t0.v)})이었는데, ${ylab(yr)}엔 <b>${t.emoji} ${iga(t.name)}</b> 가장 큰 조각(${pc0(t.v)})이에요.</p>`;
+      }
+      const gd=yr.gold-mix.gold_start;
+      story+=`<p class="ct">🪙 ${mix.base}년 말에 돈의 ${pc0(mix.gold_start)}를 금으로 들고 시작했다면, ${ylab(yr)}엔 금이 <b>${pc0(yr.gold)}</b>예요. ${Math.abs(gd)<0.005?"금과 주식이 비슷하게 달렸어요.":gd>0?"금이 이 나라 주식보다 더 잘 달려서 조각이 커졌어요.":"이 나라 주식이 금보다 더 잘 달려서 금 조각이 작아졌어요."}</p>`;
+      box.querySelector("#mixStory").innerHTML=story;
+      box.querySelector("#yNow").textContent=ylab(yr);
+      if(+range.value!==i) range.value=i;
+      ms.querySelectorAll(".mmini").forEach(m=>m.classList.toggle("on",+m.dataset.i===i));
+      const mon=ms.querySelector(".on"); if(mon&&ms.scrollTo) ms.scrollTo({left:mon.offsetLeft-ms.clientWidth/2+40,behavior:"smooth"});
+    };
+    let timer=null; const playBtn=box.querySelector("#yPlay");
+    const stop=()=>{if(timer){clearInterval(timer);timer=null;} playBtn.textContent="▶";};
+    playBtn.onclick=()=>{ if(timer){stop();return;} if(idx>=ys.length-1) show(0); playBtn.textContent="⏸";
+      timer=setInterval(()=>{ if(idx>=ys.length-1){stop();return;} show(idx+1); },700); };
+    range.oninput=()=>{stop(); show(range.value);};
+    ms.querySelectorAll(".mmini").forEach(b=>b.onclick=()=>{stop(); show(b.dataset.i);});
+    // 링을 손가락(마우스)으로 좌우로 끌기
+    const ring=box.querySelector("#mixRing"); let sx=null, si=0;
+    ring.onpointerdown=e=>{stop(); sx=e.clientX; si=idx; if(ring.setPointerCapture) ring.setPointerCapture(e.pointerId);};
+    ring.onpointermove=e=>{ if(sx==null) return; const step=Math.round((e.clientX-sx)/28); if(si+step!==idx) show(si+step); };
+    ring.onpointerup=ring.onpointercancel=()=>{sx=null;};
+    show(idx);
   }
 
   function render(){

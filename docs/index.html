@@ -1057,7 +1057,7 @@ h1,h2,h3,.jua{font-family:"Jua","Noto Sans KR",sans-serif;font-weight:400;letter
       <div class="mixleg"><div class="mrow mh"><i></i><span class="mn">조각</span><span class="mv">비중</span><span class="md">${prev?`${prev.y}년보다`:""}</span></div>${rows}</div></div>
       ${story}
       <p class="lbl" style="margin-top:12px">👉 해마다 링이 어떻게 바뀌었는지 (누르면 크게)</p><div class="mministrip">${minis}</div>
-      <p class="foot">업종마다 대표 회사들의 덩치(시가총액)로 계산한 대략값이에요. 옛날 덩치는 '지금 덩치 × 그때 주가 ÷ 지금 주가'로 거꾸로 계산해서, 회사가 주식 수를 늘리거나 줄인 건 반영되지 않아요. 아직 상장 전이던 회사는 그해에 빠져요. 금 칸은 ${mix.base}년 말에 '주식 90 : 금 10'으로 시작했다고 가정하고, 그 나라 돈으로 바꾼 금값과 대표 지수의 변화로 계산해요.</p>`;
+      <p class="foot">업종마다 대표 회사들의 덩치(시가총액 = 주가 × 주식 수)로 계산한 대략값이에요. 회사의 '과거 주식 수' 기록이 있으면 그걸로 계산하고(이 나라 대표 회사의 ${Math.round((mix.share_hist||0)*100)}%), 기록이 없으면 '지금 덩치 × 그때 주가 ÷ 지금 주가'로 거꾸로 계산해요. 주식 수 기록은 보통 2010년 무렵부터 있어서, 그 전 해는 가장 오래된 기록의 주식 수를 써요. 아직 상장 전이던 회사는 그해에 빠져요. 금 칸은 ${mix.base}년 말에 '주식 90 : 금 10'으로 시작했다고 가정하고, 그 나라 돈으로 바꾼 금값과 대표 지수의 변화로 계산해요.</p>`;
     const pick=i=>{mixYear=ys[+i].y; renderMix();};
     box.querySelectorAll(".ychip").forEach(b=>b.onclick=()=>pick(b.dataset.i));
     box.querySelectorAll(".mmini").forEach(b=>b.onclick=()=>pick(b.dataset.i));

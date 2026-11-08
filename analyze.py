@@ -153,37 +153,95 @@ def fetch_raw_and_caps(tickers):
             pass
 
     def one(t):
+        cap, shares, splits = None, None, None
         try:
             tk = yf.Ticker(t)
-            v = getattr(tk.fast_info, "market_cap", None)
-            if not v:
-                v = tk.info.get("marketCap")
-            return t, float(v) if v else None
+            try:
+                cap = getattr(tk.fast_info, "market_cap", None) or tk.info.get("marketCap")
+            except Exception:
+                cap = None
+            if not t.endswith("=X"):
+                try:
+                    shares = tk.get_shares_full(start="1995-01-01")
+                except Exception:
+                    shares = None
+                try:
+                    splits = tk.splits
+                except Exception:
+                    splits = None
         except Exception:
-            return t, None
+            pass
+        return t, (float(cap) if cap else None), shares, splits
 
     with ThreadPoolExecutor(8) as ex:
-        caps = dict(ex.map(one, tickers))
-    return raw, {t: c for t, c in caps.items() if c}
+        res = list(ex.map(one, tickers))
+    caps = {t: c for t, c, _, _ in res if c}
+    hist = {t: (s, sp) for t, _, s, sp in res if s is not None and len(s) >= 2}
+    return raw, caps, hist
 
 
 def demo_raw_and_caps(tickers):
     rng = np.random.default_rng(5)
     raw = demo_prices(tickers, seed=5)
-    return raw, {t: float(rng.lognormal(23, 1.2)) for t in raw}
+    caps = {t: float(rng.lognormal(23, 1.2)) for t in raw}
+    hist = {}
+    for t in list(raw)[::3]:          # 일부 회사만 '과거 주식 수'가 있다고 가정
+        idx = raw[t].index[::60]
+        hist[t] = (pd.Series(np.linspace(0.6, 1.0, len(idx)) * 1e9, index=idx), pd.Series(dtype=float))
+    return raw, caps, hist
 
 
-def yearly_mix(secs, raw, caps, bench, gold_local):
+def _naive(idx):
+    return pd.to_datetime(idx, utc=True).tz_convert(None).normalize()
+
+
+def cap_series(price, cap_now, hist=None):
+    """회사의 과거 덩치(시가총액) 줄을 만들어요.
+    · 과거 주식 수가 있으면: 그날 주가 × 그날 주식 수 (액면분할은 맞춰서 보정)
+    · 없으면: 지금 덩치 × (그날 주가 ÷ 지금 주가)
+    마지막 날 값은 지금 시가총액에 맞춰요."""
+    price = price.dropna()
+    if not len(price):
+        return None, False
+    if hist is not None:
+        try:
+            sh, sp = hist
+            sh = pd.Series(sh.values, index=_naive(sh.index)).astype(float)
+            sh = sh[sh > 0]
+            sh = sh[~sh.index.duplicated(keep="last")].sort_index()
+            med = sh.rolling(7, center=True, min_periods=1).median()
+            sh = sh[(sh / med).between(0.5, 2.0)]          # 튀는 값(데이터 오류) 빼기
+            if sp is not None and len(sp):
+                sp = pd.Series(sp.values, index=_naive(sp.index)).astype(float)
+                for d, r in sp[sp > 0].items():            # 분할 전 주식 수를 분할 후 기준으로
+                    sh[sh.index < d] *= r
+            if len(sh) >= 2:
+                full = sh.reindex(price.index.union(sh.index)).sort_index().ffill().bfill()
+                cap = price * full.reindex(price.index)
+                if cap_now and cap.iloc[-1] > 0:
+                    cap = cap * (cap_now / cap.iloc[-1])
+                return cap, True
+        except Exception:
+            pass
+    if cap_now:
+        return price / price.iloc[-1] * cap_now, False
+    return None, False
+
+
+def yearly_mix(secs, capser, bench, gold_local):
     """해마다(그해 마지막 거래일) 업종별 덩치 비중 + 금 칸을 계산해요.
     회사 덩치(과거) = 지금 시가총액 × (그때 주가 ÷ 지금 주가) — 주식 수 변화는 무시한 대략값."""
     sector_caps = {}
+    used = with_hist = 0
     for sc in secs:
         parts = []
         for t in cap_list(sc):
-            s, c = raw.get(t), caps.get(t)
-            if s is None or not c or len(s) < 2:
+            if t not in capser:
                 continue
-            parts.append((s / s.iloc[-1] * c).rename(t))
+            s, ok = capser[t]
+            used += 1
+            with_hist += ok
+            parts.append(s.rename(t))
         if parts:
             sector_caps[sc["key"]] = pd.concat(parts, axis=1, sort=True).ffill(limit=10)
     if len(sector_caps) < MIN_SECTORS or gold_local is None:
@@ -217,6 +275,7 @@ def yearly_mix(secs, raw, caps, bench, gold_local):
     if years[-1]["y"] == datetime.now(KST).year:
         years[-1]["now"] = True
     return {"base": years[0]["y"], "gold_start": GOLD_START,
+            "share_hist": round(with_hist / used, 2) if used else 0,
             "sectors": {sc["key"]: {"name": sc["name"], "emoji": sc["emoji"]} for sc in secs},
             "years": years}
 
@@ -480,8 +539,15 @@ def main():
     # 링 그래프용: 대표 회사 덩치 + 환율
     cap_t = sorted({t for s in sectors for t in cap_list(s)})
     fx_t = sorted(set(FX.values()))
-    raw, caps = (demo_raw_and_caps(cap_t + fx_t) if args.demo else fetch_raw_and_caps(cap_t + fx_t))
-    print(f"덩치(시가총액)를 받은 회사: {sum(1 for t in cap_t if t in caps)}/{len(cap_t)}")
+    raw, caps, hist = (demo_raw_and_caps(cap_t + fx_t) if args.demo else fetch_raw_and_caps(cap_t + fx_t))
+    capser = {}
+    for t in cap_t:
+        if t in raw:
+            s, ok = cap_series(raw[t], caps.get(t), hist.get(t))
+            if s is not None and len(s) > 1:
+                capser[t] = (s, ok)
+    print(f"덩치를 계산한 회사: {len(capser)}/{len(cap_t)} "
+          f"(과거 주식 수로 계산: {sum(ok for _, ok in capser.values())})")
 
     now = datetime.now(KST)
     data = {"generated": now.strftime("%Y-%m-%d %H:%M"), "demo": args.demo, "markets": {}}
@@ -506,7 +572,7 @@ def main():
             elif m in FX:
                 gold_local = None
         try:
-            mix = yearly_mix(secs, raw, caps, bench, gold_local)
+            mix = yearly_mix(secs, capser, bench, gold_local)
         except Exception as e:
             print(f"{FLAG[m]} 링 그래프 계산 실패: {e}")
             mix = None

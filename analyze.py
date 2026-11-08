@@ -217,9 +217,11 @@ def align_splits(sh, sp, window_days=1100, tol=0.3):
             continue
         lr = abs(np.log(ratio))
         near = sp[(abs((sp.index - idx[i]).days) <= window_days)] if len(sp) else sp
-        if any(abs(lr - abs(np.log(r))) < tol for r in near.values) or lr > np.log(8):
+        if any(abs(lr - abs(np.log(r))) < tol for r in near.values):
             vals[:i] *= ratio                            # 이전 기록을 나중 기준으로 맞춤
-            # (분할과 맞지 않아도 8배 넘게 뛴 건 진짜 주식 수 변화가 아니라 기록 단위가 바뀐 것으로 봐요)
+        # 분할과 맞지 않는 큰 변화는 진짜 주식 수 변화(대규모 유상증자·합병)로 보고 그대로 둬요.
+        # (2026-11-08 배움: '8배 넘으면 기록 단위 변화'로 봤더니 셈코프마린(시트리움)의
+        #  2020년 15배 유상증자를 지워 버려서 싱가포르 조선·해양이 30%로 부풂)
     return pd.Series(vals, index=idx)
 
 

@@ -195,6 +195,34 @@ def _naive(idx):
     return pd.to_datetime(idx, utc=True).tz_convert(None).normalize()
 
 
+def align_splits(sh, sp, window_days=1100, tol=0.3):
+    """과거 주식 수 기록을 '지금(분할 후) 기준'으로 맞춰요.
+    야후 기록은 분할 전 숫자와 분할 후 숫자가 섞여 있을 때가 있어서,
+    무조건 곱하지 않고 '기록이 실제로 분할 비율만큼 뛴 곳'만 찾아서 맞춰요.
+    (2026-11-08 배움: 삼성전자 2018년 50:1 분할 때 무조건 ×50 하다가 2017년 반도체가 87%로 부풂.
+     기록이 바뀐 곳이 분할 날짜와 1년 넘게 떨어져 있을 수도 있어서 3년 안을 찾아요)"""
+    if len(sh) < 2:
+        return sh
+    if sp is not None and len(sp):
+        sp = pd.Series(sp.values, index=_naive(sp.index)).astype(float)
+        sp = sp[sp > 0]
+        sp = sp[(sp > 1.05) | (sp < 0.95)]
+    else:
+        sp = pd.Series(dtype=float, index=pd.DatetimeIndex([]))
+    vals = sh.values.astype(float).copy()
+    idx = sh.index
+    for i in range(len(vals) - 1, 0, -1):               # 최근 → 과거로 가면서
+        ratio = vals[i] / vals[i - 1]                    # (나중 기록) ÷ (이전 기록)
+        if 0.625 < ratio < 1.6:
+            continue
+        lr = abs(np.log(ratio))
+        near = sp[(abs((sp.index - idx[i]).days) <= window_days)] if len(sp) else sp
+        if any(abs(lr - abs(np.log(r))) < tol for r in near.values) or lr > np.log(8):
+            vals[:i] *= ratio                            # 이전 기록을 나중 기준으로 맞춤
+            # (분할과 맞지 않아도 8배 넘게 뛴 건 진짜 주식 수 변화가 아니라 기록 단위가 바뀐 것으로 봐요)
+    return pd.Series(vals, index=idx)
+
+
 def cap_series(price, cap_now, hist=None):
     """회사의 과거 덩치(시가총액) 줄을 만들어요.
     · 과거 주식 수가 있으면: 그날 주가 × 그날 주식 수 (액면분할은 맞춰서 보정)
@@ -211,10 +239,7 @@ def cap_series(price, cap_now, hist=None):
             sh = sh[~sh.index.duplicated(keep="last")].sort_index()
             med = sh.rolling(7, center=True, min_periods=1).median()
             sh = sh[(sh / med).between(0.5, 2.0)]          # 튀는 값(데이터 오류) 빼기
-            if sp is not None and len(sp):
-                sp = pd.Series(sp.values, index=_naive(sp.index)).astype(float)
-                for d, r in sp[sp > 0].items():            # 분할 전 주식 수를 분할 후 기준으로
-                    sh[sh.index < d] *= r
+            sh = align_splits(sh, sp)                       # 액면분할 전후 숫자 맞추기
             if len(sh) >= 2:
                 full = sh.reindex(price.index.union(sh.index)).sort_index().ffill().bfill()
                 cap = price * full.reindex(price.index)
@@ -278,8 +303,16 @@ def yearly_mix(secs, capser, bench, gold_local):
         return None
     if years[-1]["y"] == datetime.now(KST).year:
         years[-1]["now"] = True
+    # 점검용 경고: 한 해 만에 한 업종 조각이 2.5배 넘게, 15%p 넘게 커지거나 작아지면 표시
+    warnings = []
+    for a_, b_ in zip(years, years[1:]):
+        for k in set(a_["w"]) & set(b_["w"]):
+            x, y2 = a_["w"][k], b_["w"][k]
+            if abs(y2 - x) > 0.15 and (y2 > 2.5 * x or x > 2.5 * y2):
+                warnings.append(f"{b_['y']} {k}: {x:.1%} → {y2:.1%}")
     return {"base": years[0]["y"], "gold_start": GOLD_START,
             "share_hist": round(with_hist / used, 2) if used else 0,
+            "warnings": warnings,
             "sectors": {sc["key"]: {"name": sc["name"], "emoji": sc["emoji"]} for sc in secs},
             "years": years}
 

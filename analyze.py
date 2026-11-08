@@ -664,6 +664,18 @@ def main():
             "since": min((prices[s["ticker"]].index[0] for s in secs if s["ticker"] in prices),
                          default=bench.index[0]).strftime("%Y-%m-%d"),
         }
+    # 점검용: 회사 묶음 업종의 회사별 10년·20년 수익률 (이상한 회사 찾기)
+    parts = {}
+    for s in sectors:
+        if "|" in s["ticker"] and s["market"] in data["markets"]:
+            row = {}
+            for t in s["ticker"].split("|"):
+                if t in prices:
+                    row[t] = {k: (None if ret(prices[t], n) is None else round(ret(prices[t], n), 2))
+                              for k, _, n in WINDOWS if k in ("y5", "y10", "y20")}
+                    row[t]["since"] = prices[t].index[0].strftime("%Y-%m-%d")
+            parts[f"{s['market']}:{s['key']}"] = row
+    data["parts"] = parts
     g = prices.get(GOLD)
     if g is not None:
         data["gold"] = {k: ret(g, n) for k, _, n in WINDOWS[:5]}

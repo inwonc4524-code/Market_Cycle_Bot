@@ -674,6 +674,18 @@ def main():
                     row[t] = {k: (None if ret(prices[t], n) is None else round(ret(prices[t], n), 2))
                               for k, _, n in WINDOWS if k in ("y5", "y10", "y20")}
                     row[t]["since"] = prices[t].index[0].strftime("%Y-%m-%d")
+                    if t in raw:
+                        row[t]["raw_y20"] = None if ret(raw[t], 5040) is None else round(ret(raw[t], 5040), 2)
+                        row[t]["raw_y10"] = None if ret(raw[t], 2520) is None else round(ret(raw[t], 2520), 2)
+                    pr = prices[t].dropna()
+                    rr = pr.pct_change()
+                    big = rr[rr.abs() > daily_limit(t)].iloc[5:] if len(rr) > 5 else rr.iloc[:0]
+                    row[t]["clip"] = [[d.strftime("%Y-%m-%d"), round(float(x), 3)] for d, x in big.items()][:12]
+                    row[t]["n"] = len(pr)
+            bk = prices.get(s["ticker"])
+            if bk is not None:
+                row["_basket_by_year"] = {str(y): round(float(v), 1) for y, v in bk.groupby(bk.index.year).last().items()}
+                row["_basket_n"] = len(bk)
             parts[f"{s['market']}:{s['key']}"] = row
     data["parts"] = parts
     g = prices.get(GOLD)

@@ -40,6 +40,9 @@ BENCH = {
 FLAG = {"kr": "🇰🇷 한국", "us": "🇺🇸 미국", "jp": "🇯🇵 일본",
         "tw": "🇹🇼 대만", "hk": "🇭🇰 홍콩", "cn": "🇨🇳 중국", "sg": "🇸🇬 싱가포르"}
 GOLD = "GC=F"
+# 금값(달러)을 그 나라 돈으로 바꿀 때 쓰는 환율 (1달러 = 몇 원/엔/…)
+FX = {"kr": "KRW=X", "jp": "JPY=X", "tw": "TWD=X", "hk": "HKD=X", "cn": "CNY=X", "sg": "SGD=X"}
+GOLD_START = 0.10   # 링 그래프: 처음 해에 돈의 10%를 금으로 들고 있었다고 가정
 
 WINDOWS = [  # (키, 이름, 거래일 수)
     ("d1", "1일", 1), ("w1", "1주일", 5), ("m1", "1달", 21), ("m6", "6개월", 126),
@@ -124,6 +127,98 @@ def basket(prices, ticker):
                 hold2[t] = (after / len(hold2)) if hold2 else 1.0
         out.append(level if hold2 else np.nan)
     return pd.Series(out, index=df.index).dropna()
+
+
+def cap_list(sc):
+    """업종 덩치(시가총액)를 잴 때 쓰는 대표 회사들."""
+    if sc.get("caps"):
+        return [t for t in sc["caps"].split("|") if t]
+    return [t for t in sc["ticker"].split("|") if t]
+
+
+def fetch_raw_and_caps(tickers):
+    """배당을 반영하지 않은 가격(덩치 계산용)과 지금 시가총액을 받아와요."""
+    import yfinance as yf
+    from concurrent.futures import ThreadPoolExecutor
+
+    raw = {}
+    data = yf.download(tickers, period="max", auto_adjust=False, progress=False,
+                       group_by="ticker", threads=True)
+    for t in tickers:
+        try:
+            s = _close(data, t, len(tickers) > 1)
+            if len(s):
+                raw[t] = s
+        except Exception:
+            pass
+
+    def one(t):
+        try:
+            tk = yf.Ticker(t)
+            v = getattr(tk.fast_info, "market_cap", None)
+            if not v:
+                v = tk.info.get("marketCap")
+            return t, float(v) if v else None
+        except Exception:
+            return t, None
+
+    with ThreadPoolExecutor(8) as ex:
+        caps = dict(ex.map(one, tickers))
+    return raw, {t: c for t, c in caps.items() if c}
+
+
+def demo_raw_and_caps(tickers):
+    rng = np.random.default_rng(5)
+    raw = demo_prices(tickers, seed=5)
+    return raw, {t: float(rng.lognormal(23, 1.2)) for t in raw}
+
+
+def yearly_mix(secs, raw, caps, bench, gold_local):
+    """해마다(그해 마지막 거래일) 업종별 덩치 비중 + 금 칸을 계산해요.
+    회사 덩치(과거) = 지금 시가총액 × (그때 주가 ÷ 지금 주가) — 주식 수 변화는 무시한 대략값."""
+    sector_caps = {}
+    for sc in secs:
+        parts = []
+        for t in cap_list(sc):
+            s, c = raw.get(t), caps.get(t)
+            if s is None or not c or len(s) < 2:
+                continue
+            parts.append((s / s.iloc[-1] * c).rename(t))
+        if parts:
+            sector_caps[sc["key"]] = pd.concat(parts, axis=1, sort=True).ffill(limit=10)
+    if len(sector_caps) < MIN_SECTORS or gold_local is None:
+        return None
+    b = bench.dropna()
+    g = gold_local.dropna()
+    years, base = [], None
+    for y in sorted(set(b.index.year)):
+        d = b[b.index.year == y].index[-1]
+        gw = g[g.index <= d]
+        if not len(gw) or (d - gw.index[-1]).days > 10:
+            continue
+        w = {}
+        for k, df in sector_caps.items():
+            sub = df[df.index <= d]
+            if len(sub):
+                v = sub.iloc[-1].sum(min_count=1)
+                if pd.notna(v) and v > 0:
+                    w[k] = float(v)
+        if len(w) < MIN_SECTORS:
+            continue
+        if base is None:
+            base = (float(b[d]), float(gw.iloc[-1]))
+        br, gr = float(b[d]) / base[0], float(gw.iloc[-1]) / base[1]
+        gs = GOLD_START * gr / ((1 - GOLD_START) * br + GOLD_START * gr)
+        tot = sum(w.values())
+        years.append({"y": int(y), "date": d.strftime("%Y-%m-%d"), "gold": round(gs, 4),
+                      "w": {k: round(v / tot * (1 - gs), 4) for k, v in w.items()}})
+    if not years:
+        return None
+    if years[-1]["y"] == datetime.now(KST).year:
+        years[-1]["now"] = True
+    return {"base": years[0]["y"], "gold_start": GOLD_START,
+            "sectors": {sc["key"]: {"name": sc["name"], "emoji": sc["emoji"]} for sc in secs},
+            "years": years}
 
 
 def demo_prices(tickers, seed=11):
@@ -382,6 +477,12 @@ def main():
             if b is not None:
                 prices[s["ticker"]] = b
 
+    # 링 그래프용: 대표 회사 덩치 + 환율
+    cap_t = sorted({t for s in sectors for t in cap_list(s)})
+    fx_t = sorted(set(FX.values()))
+    raw, caps = (demo_raw_and_caps(cap_t + fx_t) if args.demo else fetch_raw_and_caps(cap_t + fx_t))
+    print(f"덩치(시가총액)를 받은 회사: {sum(1 for t in cap_t if t in caps)}/{len(cap_t)}")
+
     now = datetime.now(KST)
     data = {"generated": now.strftime("%Y-%m-%d %H:%M"), "demo": args.demo, "markets": {}}
     missing_all = []
@@ -396,11 +497,24 @@ def main():
         wins = window_table(m, secs, prices, bench)
         w_list, now_state = winters(bench)
         eras = baton_eras(secs, prices, bench)
+        gold_local = None
+        if GOLD in prices:
+            gold_local = prices[GOLD]
+            if m in FX and FX[m] in raw:
+                fx = raw[FX[m]].reindex(gold_local.index).ffill()
+                gold_local = (gold_local * fx).dropna()
+            elif m in FX:
+                gold_local = None
+        try:
+            mix = yearly_mix(secs, raw, caps, bench, gold_local)
+        except Exception as e:
+            print(f"{FLAG[m]} 링 그래프 계산 실패: {e}")
+            mix = None
         data["markets"][m] = {
             "bench_name": bname, "bench_ticker": bt,
             "last_date": bench.index[-1].strftime("%Y-%m-%d"),
             "windows": wins, "eras": eras, "winters": w_list, "now": now_state,
-            "season": season_text(m, now_state), "missing": missing,
+            "season": season_text(m, now_state), "missing": missing, "mix": mix,
             "since": min((prices[s["ticker"]].index[0] for s in secs if s["ticker"] in prices),
                          default=bench.index[0]).strftime("%Y-%m-%d"),
         }

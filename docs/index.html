@@ -149,6 +149,25 @@ h1,h2,h3,.jua{font-family:"Jua","Noto Sans KR",sans-serif;font-weight:400;letter
 .bt i{display:block;height:100%;border-radius:6px}
 .bt i.up{background:#F87171}.bt i.down{background:#60A5FA}
 .bv{text-align:right;font-weight:700}.bv.up{color:#DC2626}.bv.down{color:#2563EB}
+
+.ychips{margin-bottom:6px}
+.ychip{flex:none;border:1.5px solid var(--line);background:#fff;padding:6px 11px;border-radius:99px;font-size:13.5px;cursor:pointer;font-family:inherit;color:var(--ink)}
+.ychip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.mixmain{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:center;margin:6px 0}
+.mixring{flex:none}
+.mixleg{flex:1;min-width:230px;display:flex;flex-direction:column;gap:3px}
+.mrow{display:grid;grid-template-columns:12px 1fr 52px 58px;gap:8px;align-items:center;font-size:13.5px;padding:3px 0;border-bottom:1px dashed var(--line)}
+.mrow i{width:12px;height:12px;border-radius:3px;display:block}
+.mrow.mh{font-size:11.5px;color:var(--muted);border-bottom:1px solid var(--line)}
+.mv{text-align:right;font-weight:700}.md{text-align:right;font-size:12px}
+.dup{color:#DC2626}.ddn{color:#2563EB}.dz{color:var(--muted)}
+.newb{font-size:10.5px;background:#ECFDF5;color:#047857;padding:1px 6px;border-radius:99px}
+.mministrip{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch}
+.mmini{flex:none;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:4px;border-radius:12px;font-size:11.5px;color:var(--muted)}
+.mmini.on{background:#F3EBDD;color:var(--ink);font-weight:700}
+.mixgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.mixmini{display:flex;flex-direction:column;align-items:center;gap:2px;background:#FBF7F0;border-radius:16px;padding:10px;cursor:pointer;font-size:12.5px;text-align:center}
+.mixmini b{font-family:"Jua",sans-serif;font-weight:400;font-size:15px}
 </style>
 </head>
 <body>
@@ -191,6 +210,11 @@ h1,h2,h3,.jua{font-family:"Jua","Noto Sans KR",sans-serif;font-weight:400;letter
   <div class="card long" id="calcCard" style="display:none">
     <div class="ribbon-title"><h2>🤖 데이터로 계산한 업종 성적</h2><span id="calcAsof"></span></div>
     <div id="calcLong"></div>
+  </div>
+
+  <div class="card" id="mixCard" style="display:none">
+    <div class="ribbon-title"><h2>🍩 해마다 업종 비중 (금 포함)</h2><span id="mixNote"></span></div>
+    <div id="mix"></div>
   </div>
 
   <div class="card long">
@@ -957,12 +981,97 @@ h1,h2,h3,.jua{font-family:"Jua","Noto Sans KR",sans-serif;font-weight:400;letter
     return `<div class="calcbox"><div class="calchead">🤖 데이터로 계산한 1등·꼴찌 업종 <small>${DATA.asof} 기준${DATA.demo?" · ⚠️ 가짜 데이터":""}</small></div><div class="tblwrap"><table class="cmp"><thead><tr><th>시장</th><th>지수</th><th>1등 / 꼴찌 업종</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
   }
 
+
+  // ===== 🍩 해마다 업종 비중 링 (금 포함) =====
+  const PAL=["#6C5CE7","#E17055","#00B894","#0984E3","#E84393","#00CEC9","#D63031","#636E72","#A29BFE","#27AE60","#FAB1A0","#74B9FF","#B33771","#3B3B98","#58B19F","#F97F51","#25CCF7","#8E44AD","#2D3436","#C0392B"];
+  const GOLDC="#D4A017";
+  let mixYear=null;
+  const pc0=x=>(x*100).toFixed(x<0.1?1:0)+"%";
+
+  function arcPath(c,r1,r0,a0,a1){
+    const p=(r,a)=>[(c+r*Math.sin(a)).toFixed(2),(c-r*Math.cos(a)).toFixed(2)];
+    const lg=(a1-a0)>Math.PI?1:0;
+    const [x1,y1]=p(r1,a0),[x2,y2]=p(r1,a1),[x3,y3]=p(r0,a1),[x4,y4]=p(r0,a0);
+    return `M${x1},${y1}A${r1},${r1} 0 ${lg} 1 ${x2},${y2}L${x3},${y3}A${r0},${r0} 0 ${lg} 0 ${x4},${y4}Z`;
+  }
+  function donutSvg(parts,size,centerTop,centerBottom){
+    const c=size/2, r1=c-2, r0=c*0.6; let a=0;
+    const tot=parts.reduce((s,p)=>s+p.v,0)||1;
+    const paths=parts.filter(p=>p.v>0).map(p=>{
+      const a1=a+p.v/tot*2*Math.PI; const d=arcPath(c,r1,r0,a,Math.min(a1,a+2*Math.PI-1e-3)); a=a1;
+      return `<path d="${d}" fill="${p.c}" stroke="#fff" stroke-width="${size>100?1.5:0.8}"><title>${p.t}</title></path>`;}).join("");
+    const ct=centerTop?`<text x="${c}" y="${c-(centerBottom?4:-6)}" text-anchor="middle" font-size="${size*0.13}" font-family="Jua,sans-serif" fill="#2B2A33">${centerTop}</text>`:"";
+    const cb=centerBottom?`<text x="${c}" y="${c+size*0.11}" text-anchor="middle" font-size="${size*0.075}" fill="#6E6B78">${centerBottom}</text>`:"";
+    return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" style="max-width:100%">${paths}${ct}${cb}</svg>`;
+  }
+  function mixParts(mix,yr){
+    const keys=Object.keys(mix.sectors);
+    const parts=[{k:"gold",v:yr.gold,c:GOLDC,t:`🪙 금 ${pc0(yr.gold)}`,e:"🪙",n:"금"}];
+    keys.forEach((k,i)=>{const v=yr.w[k]||0; const s=mix.sectors[k]; parts.push({k,v,c:PAL[i%PAL.length],t:`${s.emoji} ${s.name} ${pc0(v)}`,e:s.emoji,n:s.name});});
+    return parts;
+  }
+  function topSector(mix,yr){let best=null; Object.entries(yr.w).forEach(([k,v])=>{if(!best||v>best[1]) best=[k,v];}); return best?{...mix.sectors[best[0]],v:best[1]}:null;}
+  const hasB=s=>{const m=String(s).match(/[가-힣](?=[^가-힣]*$)/); return m?((m[0].charCodeAt(0)-0xAC00)%28>0):false;};
+  const iga=s=>s+(hasB(s)?"이":"가"), ieyo=s=>s+(hasB(s)?"이에요":"예요");
+  const ylab=yr=>yr.now?`${yr.y} (지금)`:`${yr.y}`;
+
+  function renderMix(){
+    const card=$("#mixCard"), box=$("#mix");
+    if(!DATA||!DATA.markets){card.style.display="none";return;}
+    if(mode==="all"){
+      const items=ORDER.filter(k=>DATA.markets[k]&&DATA.markets[k].mix).map(k=>{
+        const mix=DATA.markets[k].mix, yr=mix.years[mix.years.length-1], t=topSector(mix,yr);
+        return `<div class="mixmini go" data-k="${k}">${donutSvg(mixParts(mix,yr),110,MK[k].f,"")}<b>${MK[k].n}</b><span>${t?`${t.emoji} ${t.name} ${pc0(t.v)}`:""}</span><span>🪙 금 ${pc0(yr.gold)}</span></div>`;}).join("");
+      if(!items){card.style.display="none";return;}
+      card.style.display=""; $("#mixNote").textContent="가장 최근 해 기준 · 링을 누르면 그 나라로";
+      box.innerHTML=`<div class="mixgrid">${items}</div>`;
+      box.querySelectorAll(".mixmini.go").forEach(el=>el.onclick=()=>{const b=document.querySelector(`.chip.mk[data-k="${el.dataset.k}"]`); if(b) b.click();});
+      return;
+    }
+    const md=DATA.markets[mode]; const mix=md&&md.mix;
+    if(!mix||!mix.years||!mix.years.length){card.style.display="none";return;}
+    card.style.display="";
+    const ys=mix.years; let idx=ys.findIndex(y=>y.y===mixYear); if(idx<0) idx=ys.length-1;
+    const yr=ys[idx], prev=idx>0?ys[idx-1]:null, first=ys[0];
+    const parts=mixParts(mix,yr);
+    const t=topSector(mix,yr), t0=topSector(mix,first);
+    $("#mixNote").textContent=`${first.y}년 ~ 지금`;
+    const rows=parts.filter(p=>p.v>0).sort((a,b)=>b.v-a.v).map(p=>{
+      const pv=prev?(p.k==="gold"?prev.gold:(prev.w[p.k]||0)):null;
+      const d=pv==null?"":(p.v-pv);
+      const ds=d===""?"":Math.abs(d)<0.0005?'<span class="dz">–</span>':`<span class="${d>0?"dup":"ddn"}">${d>0?"▲":"▼"}${(Math.abs(d)*100).toFixed(1)}</span>`;
+      const isNew=prev&&p.k!=="gold"&&!(p.k in prev.w);
+      return `<div class="mrow"><i style="background:${p.c}"></i><span class="mn">${p.e} ${p.n}${isNew?' <small class="newb">새로 등장</small>':""}</span><span class="mv">${pc0(p.v)}</span><span class="md">${ds}</span></div>`;}).join("");
+    let story="";
+    if(t&&t0){
+      story+= t0.name===t.name
+        ? `<p class="ct">🍩 ${first.y}년에도, ${ylab(yr)}에도 가장 큰 조각은 <b>${t.emoji} ${ieyo(t.name)}</b>. (${pc0(t0.v)} → ${pc0(t.v)})</p>`
+        : `<p class="ct">🍩 ${first.y}년엔 <b>${t0.emoji} ${iga(t0.name)}</b> 가장 큰 조각(${pc0(t0.v)})이었는데, ${ylab(yr)}엔 <b>${t.emoji} ${iga(t.name)}</b> 가장 큰 조각(${pc0(t.v)})이에요.</p>`;
+    }
+    const gd=yr.gold-mix.gold_start;
+    story+=`<p class="ct">🪙 ${mix.base}년 말에 돈의 ${pc0(mix.gold_start)}를 금으로 들고 시작했다면, ${ylab(yr)}엔 금이 <b>${pc0(yr.gold)}</b>예요. ${Math.abs(gd)<0.005?"금과 주식이 비슷하게 달렸어요.":gd>0?"금이 이 나라 주식보다 더 잘 달려서 조각이 커졌어요.":"이 나라 주식이 금보다 더 잘 달려서 금 조각이 작아졌어요."}</p>`;
+    const chips=ys.map((y,i)=>`<button class="ychip${i===idx?" on":""}" data-i="${i}">${y.now?"지금":y.y}</button>`).join("");
+    const minis=ys.map((y,i)=>`<div class="mmini${i===idx?" on":""}" data-i="${i}">${donutSvg(mixParts(mix,y),64,"","")}<span>${y.now?"지금":y.y}</span></div>`).join("");
+    box.innerHTML=`<p class="lbl">몇 년도의 링을 볼까요?</p><div class="chips ychips">${chips}</div>
+      <div class="mixmain"><div class="mixring">${donutSvg(parts,230,ylab(yr).replace(" (지금)",""),t?`${t.emoji} ${t.name.length>8?t.name.slice(0,8)+"…":t.name}`:"")}</div>
+      <div class="mixleg"><div class="mrow mh"><i></i><span class="mn">조각</span><span class="mv">비중</span><span class="md">${prev?`${prev.y}년보다`:""}</span></div>${rows}</div></div>
+      ${story}
+      <p class="lbl" style="margin-top:12px">👉 해마다 링이 어떻게 바뀌었는지 (누르면 크게)</p><div class="mministrip">${minis}</div>
+      <p class="foot">업종마다 대표 회사들의 덩치(시가총액)로 계산한 대략값이에요. 옛날 덩치는 '지금 덩치 × 그때 주가 ÷ 지금 주가'로 거꾸로 계산해서, 회사가 주식 수를 늘리거나 줄인 건 반영되지 않아요. 아직 상장 전이던 회사는 그해에 빠져요. 금 칸은 ${mix.base}년 말에 '주식 90 : 금 10'으로 시작했다고 가정하고, 그 나라 돈으로 바꾼 금값과 대표 지수의 변화로 계산해요.</p>`;
+    const pick=i=>{mixYear=ys[+i].y; renderMix();};
+    box.querySelectorAll(".ychip").forEach(b=>b.onclick=()=>pick(b.dataset.i));
+    box.querySelectorAll(".mmini").forEach(b=>b.onclick=()=>pick(b.dataset.i));
+    const yc=box.querySelector(".ychips"), on=yc.querySelector(".on"); if(on) yc.scrollLeft=on.offsetLeft-40;
+    const ms=box.querySelector(".mministrip"), mon=ms.querySelector(".on"); if(mon) ms.scrollLeft=mon.offsetLeft-40;
+  }
+
   function render(){
     const short=!!per.k;
     document.querySelectorAll(".long").forEach(e=>e.style.display=short?"none":"");
     document.querySelectorAll(".short").forEach(e=>e.style.display=short?"":"none");
     $("#perLbl").textContent=short?"짧게 보면 '요즘 무슨 일이?'를, 길게 보면 '바통이 어떻게 넘어갔나'를 보여줘요.":"몇 년 동안의 흐름을 볼까요? (짧은 기간은 맨 앞 1일·1주일·1달·6개월)";
     if(short) renderShort(); else renderLong();
+    renderMix();
   }
 
   // 용어 풀이

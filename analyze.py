@@ -247,6 +247,13 @@ def cap_series(price, cap_now, hist=None):
                 cap = price * full.reindex(price.index)
                 if cap_now and cap.iloc[-1] > 0:
                     cap = cap * (cap_now / cap.iloc[-1])
+                    # 안전장치: 주식 수 기록으로 계산한 옛날 덩치가 '주가 변화로만 계산한 덩치'와
+                    # 10배 넘게 다르면 기록이 엉킨 것으로 보고 믿지 않아요.
+                    # (2026-11-08 배움: 시트리움 2005년 덩치가 750억 싱가포르달러로 나옴)
+                    simple = price / price.iloc[-1] * cap_now
+                    r = (cap / simple).replace([np.inf, -np.inf], np.nan).dropna()
+                    if len(r) and (r.max() > 10 or r.min() < 0.1):
+                        return simple, False
                 return cap, True
         except Exception:
             pass
@@ -593,6 +600,7 @@ def main():
             s, ok = cap_series(raw[t], caps.get(t), hist.get(t))
             if s is not None and len(s) > 1:
                 capser[t] = (s, ok)
+    cap_missing = [t for t in cap_t if t not in capser]
     print(f"덩치를 계산한 회사: {len(capser)}/{len(cap_t)} "
           f"(과거 주식 수로 계산: {sum(ok for _, ok in capser.values())})")
 
@@ -628,6 +636,7 @@ def main():
             "last_date": bench.index[-1].strftime("%Y-%m-%d"),
             "windows": wins, "eras": eras, "winters": w_list, "now": now_state,
             "season": season_text(m, now_state), "missing": missing, "mix": mix,
+            "cap_missing": [t for t in cap_missing if any(t in cap_list(s) for s in secs)],
             "since": min((prices[s["ticker"]].index[0] for s in secs if s["ticker"] in prices),
                          default=bench.index[0]).strftime("%Y-%m-%d"),
         }

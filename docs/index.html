@@ -178,13 +178,6 @@ h1,h2,h3,.jua{font-family:"Jua","Noto Sans KR",sans-serif;font-weight:400;letter
   </div>
   <p class="sub">🤖 표시가 있는 나라는 업종 가격으로 매일 자동 계산해요. 한국·미국·일본·중국·홍콩·대만·싱가포르 주식시장의 '주인공 업종'이 어떻게 바뀌어 왔는지 한눈에 봐요</p>
 
-  <div class="notif" aria-label="휴대폰 알림 예시">
-    <div class="ic">🏃</div>
-    <div style="flex:1">
-      <div class="t"><span>이어달리기 봇 · 휴대폰 알림 예시</span><span>오전 8:00</span></div>
-      <div class="m" id="notifText">—</div>
-    </div>
-  </div>
 
   <div class="card explain">
     <div class="big">🏃‍♀️🔁🏃</div>
@@ -1076,7 +1069,6 @@ h1,h2,h3,.jua{font-family:"Jua","Noto Sans KR",sans-serif;font-weight:400;letter
 
   // 용어 풀이
   $("#gloss").innerHTML=GLOSS.map(([a,b])=>`<div class="gl"><b>${a}</b><p>${b}</p></div>`).join("");
-  $("#notifText").textContent="11월 6일(금) 마감 📣 🇰🇷 코스피 -6.0% 서킷브레이커! 반도체 급락 ❄️ · 🇯🇵 닛케이 -6.0% · 🇹🇼 대만 -4.5% · 🇺🇸 나스닥 +1.1% 반등 · 🇭🇰 홍콩은 이번 주 +5% · 🇸🇬 싱가포르 -2.2% · 🪙 금 이번 주 +4%";
 
   let _rw=window.innerWidth;
   window.addEventListener("resize",()=>{ if(Math.abs(window.innerWidth-_rw)>40){_rw=window.innerWidth; if(!per.k) render();} });
@@ -1084,7 +1076,6 @@ h1,h2,h3,.jua{font-family:"Jua","Noto Sans KR",sans-serif;font-weight:400;letter
   fetch("data.json?v="+Date.now()).then(r=>r.ok?r.json():null).then(d=>{
     if(!d||!d.markets) return; DATA=d; buildCalc();
     document.querySelectorAll(".chip.mk").forEach(b=>{ if(d.markets[b.dataset.k]) b.textContent+=" 🤖"; });
-    if(d.phone) $("#notifText").textContent=d.phone;
     render();
   }).catch(()=>{});
 

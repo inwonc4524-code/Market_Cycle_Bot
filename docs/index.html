@@ -171,6 +171,7 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
 .yslide{display:flex;align-items:center;gap:10px;margin:4px 0 2px}
 .yplay{flex:none;width:40px;height:40px;border-radius:50%;border:0;background:var(--ink);color:#fff;font-size:16px;cursor:pointer}
 .yrange{flex:1}
+#tabs{position:sticky;top:0;z-index:50;background:var(--bg);margin:0 -14px 12px;padding:8px 14px;box-shadow:0 4px 8px -6px rgba(0,0,0,.18)}
 .mixtabs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;margin-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}.mixtabs::-webkit-scrollbar{display:none}.mixtabs .chip{flex:0 0 auto;font-size:13px;padding:6px 11px}
 .yrange input[type=range]{width:100%;accent-color:#FF7A45;height:28px;cursor:pointer}
 .yends{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted)}
@@ -215,7 +216,6 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
 
   <div class="card" id="mixCard" style="display:none">
     <div class="ribbon-title"><h2>🍩 해마다 업종 비중 (금 포함)</h2><span id="mixNote"></span></div>
-    <div class="mixtabs" id="mixTabs"></div>
     <div id="mix"></div>
   </div>
 
@@ -713,7 +713,13 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
   const tabs=$("#tabs");
   [...ORDER.map(k=>({k,l:MK[k].f+" "+MK[k].n})),{k:"all",l:"🌏 같이 보기"}].forEach(t=>{
     const b=document.createElement("button"); b.className="chip mk"+(t.k===mode?" on":""); b.textContent=t.l; b.dataset.k=t.k;
-    b.onclick=()=>{mode=t.k; hiKey=null; document.querySelectorAll(".chip.mk").forEach(c=>c.classList.toggle("on",c===b)); render();};
+    b.onclick=()=>{
+      const bar=tabs.getBoundingClientRect().bottom;
+      const anchor=[...document.querySelectorAll(".card")].find(c=>c.offsetParent&&c.getBoundingClientRect().bottom>bar+10);
+      const y0=anchor?anchor.getBoundingClientRect().top:0;
+      mode=t.k; hiKey=null; document.querySelectorAll(".chip.mk").forEach(c=>c.classList.toggle("on",c===b)); render();
+      if(anchor&&anchor.offsetParent&&window.scrollY>0) window.scrollBy(0, anchor.getBoundingClientRect().top-y0);
+    };
     tabs.appendChild(b);
   });
   // 기간 칩
@@ -1029,20 +1035,9 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
   const iga=s=>s+(hasB(s)?"이":"가"), ieyo=s=>s+(hasB(s)?"이에요":"예요");
   const ylab=yr=>yr.now?`${yr.y} (지금)`:`${yr.y}`;
 
-  function renderMixTabs(){
-    const wrap=$("#mixTabs"), card=$("#mixCard");
-    const list=[...ORDER.filter(k=>DATA.markets[k]&&DATA.markets[k].mix).map(k=>({k,l:MK[k].f+" "+MK[k].n})),{k:"all",l:"🌏 같이"}];
-    wrap.innerHTML=list.map(t=>`<button class="chip mt${t.k===mode?" on":""}" data-k="${t.k}">${t.l}</button>`).join("");
-    wrap.querySelectorAll(".chip.mt").forEach(el=>el.onclick=()=>{
-      const y0=card.getBoundingClientRect().top;          // 링이 화면에서 제자리에 있게
-      const b=document.querySelector(`.chip.mk[data-k="${el.dataset.k}"]`); if(b) b.click();
-      window.scrollBy(0, card.getBoundingClientRect().top - y0);
-    });
-  }
   function renderMix(){
     const card=$("#mixCard"), box=$("#mix");
     if(!DATA||!DATA.markets){card.style.display="none";return;}
-    renderMixTabs();
     if(mode==="all"){
       const items=ORDER.filter(k=>DATA.markets[k]&&DATA.markets[k].mix).map(k=>{
         const mix=DATA.markets[k].mix, yr=mix.years[mix.years.length-1], t=topSector(mix,yr);

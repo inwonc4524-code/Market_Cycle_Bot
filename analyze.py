@@ -232,6 +232,7 @@ def yearly_mix(secs, capser, bench, gold_local):
     """해마다(그해 마지막 거래일) 업종별 덩치 비중 + 금 칸을 계산해요.
     회사 덩치(과거) = 지금 시가총액 × (그때 주가 ÷ 지금 주가) — 주식 수 변화는 무시한 대략값."""
     sector_caps = {}
+    since = {sc["key"]: int(sc["since"]) for sc in secs if sc.get("since")}
     used = with_hist = 0
     for sc in secs:
         parts = []
@@ -256,12 +257,15 @@ def yearly_mix(secs, capser, bench, gold_local):
             continue
         w = {}
         for k, df in sector_caps.items():
+            if since.get(k) and y < since[k]:   # 그 업종(테마)이 아직 없던 해는 빼기
+                continue
             sub = df[df.index <= d]
             if len(sub):
                 v = sub.iloc[-1].sum(min_count=1)
                 if pd.notna(v) and v > 0:
                     w[k] = float(v)
-        if len(w) < max(MIN_SECTORS, 0.75 * len(secs)):   # 업종 대부분(75%)이 생긴 해부터
+        live = sum(1 for sc in secs if not since.get(sc["key"]) or y >= since[sc["key"]])
+        if len(w) < max(MIN_SECTORS, 0.75 * live):   # 그해에 있던 업종 대부분(75%)이 생긴 해부터
             continue
         if base is None:
             base = (float(b[d]), float(gw.iloc[-1]))

@@ -97,6 +97,17 @@ def fetch_prices(tickers):
     return out
 
 
+def daily_limit(t):
+    """하루에 움직일 수 있는 최대 폭(가격제한폭). 넘으면 데이터 오류로 봐요.
+    (2026-11-08 배움: 중국 의약·바이오 20년 수익률이 503배로 부풂 — 무상증자 보정 오류)"""
+    if t.endswith(".SS") or t.endswith(".SZ"):
+        code = t.split(".")[0]
+        return 0.205 if code.startswith(("300", "301", "688")) else 0.105   # 기술주 시장 ±20%, 일반 ±10%
+    if t.endswith(".TW"):
+        return 0.105                                                        # 대만 ±10%
+    return 0.6
+
+
 def basket(prices, ticker):
     """'A|B|C' 처럼 여러 회사를 묶은 업종의 가격을 만들어요.
     처음에 똑같은 돈을 나눠 넣고 그대로 들고 있는 방식(사서 보유)으로 계산해서,
@@ -108,6 +119,15 @@ def basket(prices, ticker):
         return None
     df = pd.concat(parts, axis=1, sort=True).ffill(limit=5)
     r = df.pct_change(fill_method=None)
+    for t in df.columns:          # 가격제한폭을 넘는 움직임은 오류로 빼기 (상장 첫 5거래일은 제외)
+        lim = daily_limit(t)
+        first = df[t].first_valid_index()
+        if first is None:
+            continue
+        pos = df.index.get_loc(first)
+        mask = r[t].abs() > lim
+        mask.iloc[: pos + 6] = False
+        r.loc[mask, t] = 0.0
     r = r.where(r.abs() <= 0.6, 0.0)
     level = 100.0
     hold2 = {}
@@ -470,6 +490,10 @@ def baton_eras(sectors, prices, bench):
             merged[-1]["months"] += run["months"]
             continue
         merged.append(dict(run))
+    if len(merged) > 1 and merged[0]["months"] < MIN_HOLD:   # 데이터 맨 처음의 짧은 칸은 다음 주자에 붙이기
+        merged[1]["start"] = merged[0]["start"]
+        merged[1]["months"] += merged[0]["months"]
+        merged = merged[1:]
     eras = []
     for i, run in enumerate(merged):
         sc = names[run["t"]]

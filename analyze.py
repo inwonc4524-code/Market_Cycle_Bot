@@ -203,7 +203,7 @@ def yearly_mix(secs, raw, caps, bench, gold_local):
                 v = sub.iloc[-1].sum(min_count=1)
                 if pd.notna(v) and v > 0:
                     w[k] = float(v)
-        if len(w) < MIN_SECTORS:
+        if len(w) < max(MIN_SECTORS, 0.75 * len(secs)):   # 업종 대부분(75%)이 생긴 해부터
             continue
         if base is None:
             base = (float(b[d]), float(gw.iloc[-1]))

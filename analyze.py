@@ -136,11 +136,16 @@ def basket(prices, ticker):
     # 새로 상장한 회사는 상장 후 60거래일이 지난 뒤에 넣어요.
     # (중국은 상장 직후 몇 주 동안 상한가가 계속되는데, 그 값은 실제로 살 수 없는 가격이라 수익이 부풀려져요)
     ready = {}
-    for t in df.columns:
-        first = df[t].first_valid_index()
-        if first is not None:
-            pos = df.index.get_loc(first)
-            ready[t] = df.index[min(pos + JOIN_WAIT, len(df.index) - 1)]
+    firsts = {t: df[t].first_valid_index() for t in df.columns}
+    start0 = min(f for f in firsts.values() if f is not None)
+    for t, first in firsts.items():
+        if first is None:
+            continue
+        if first <= start0 + pd.Timedelta(days=10):   # 처음부터 있던 회사는 바로 넣기
+            ready[t] = first
+            continue
+        pos = df.index.get_loc(first)
+        ready[t] = df.index[min(pos + JOIN_WAIT, len(df.index) - 1)]
     for d in df.index:
         row = df.loc[d]
         before = sum(hold2.values())
@@ -152,7 +157,7 @@ def basket(prices, ticker):
         if before > 0:
             level *= after / before
         for t in df.columns:
-            if t not in hold2 and pd.notna(row[t]) and (not hold2 or d >= ready.get(t, d)):
+            if t not in hold2 and pd.notna(row[t]) and d >= ready.get(t, d):
                 hold2[t] = (after / len(hold2)) if hold2 else 1.0
         out.append(level if hold2 else np.nan)
     return pd.Series(out, index=df.index).dropna()
@@ -683,18 +688,9 @@ def main():
                     row[t] = {k: (None if ret(prices[t], n) is None else round(ret(prices[t], n), 2))
                               for k, _, n in WINDOWS if k in ("y5", "y10", "y20")}
                     row[t]["since"] = prices[t].index[0].strftime("%Y-%m-%d")
-                    if t in raw:
-                        row[t]["raw_y20"] = None if ret(raw[t], 5040) is None else round(ret(raw[t], 5040), 2)
-                        row[t]["raw_y10"] = None if ret(raw[t], 2520) is None else round(ret(raw[t], 2520), 2)
-                    pr = prices[t].dropna()
-                    rr = pr.pct_change()
-                    big = rr[rr.abs() > daily_limit(t)].iloc[5:] if len(rr) > 5 else rr.iloc[:0]
-                    row[t]["clip"] = [[d.strftime("%Y-%m-%d"), round(float(x), 3)] for d, x in big.items()][:12]
-                    row[t]["n"] = len(pr)
             bk = prices.get(s["ticker"])
             if bk is not None:
                 row["_basket_by_year"] = {str(y): round(float(v), 1) for y, v in bk.groupby(bk.index.year).last().items()}
-                row["_basket_n"] = len(bk)
             parts[f"{s['market']}:{s['key']}"] = row
     data["parts"] = parts
     g = prices.get(GOLD)

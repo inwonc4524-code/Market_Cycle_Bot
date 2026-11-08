@@ -4,9 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>주식시장 이어달리기 봇</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
+@font-face{font-family:'ChosunIlboMyungjo';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_one@1.0/Chosunilbo_myungjo.woff') format('woff');font-weight:normal;font-display:swap}
 :root{
   --bg:#FFF9EF; --card:#FFFFFF; --ink:#2B2A33; --muted:#6E6B78; --line:#ECE4D6;
   --accent:#FF7A45; --accent2:#3B82F6;
@@ -14,13 +13,13 @@
   --ind:#64748B; --cons:#EC4899; --tech:#8B5CF6; --winter:#94A3B8; --mix:#14B8A6;
 }
 *{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo",sans-serif;-webkit-text-size-adjust:100%}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}
 .wrap{max-width:860px;margin:0 auto;padding:16px 14px 40px}
-h1,h2,h3,.jua{font-family:"Jua","Noto Sans KR",sans-serif;font-weight:400;letter-spacing:-.2px}
+h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font-weight:700;letter-spacing:-.2px}
 .top{display:flex;align-items:center;gap:10px;margin-bottom:4px}
 .logo{width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#FFB86B,#FF7A45);display:grid;place-items:center;font-size:24px;flex:none}
 .top h1{font-size:24px;margin:0;line-height:1.15}
-.badge{display:inline-block;font-size:11px;background:#FFE6D6;color:#C2410C;padding:2px 8px;border-radius:99px;margin-left:4px;vertical-align:middle;font-family:"Noto Sans KR";font-weight:700}
+.badge{display:inline-block;font-size:11px;background:#FFE6D6;color:#C2410C;padding:2px 8px;border-radius:99px;margin-left:4px;vertical-align:middle;font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font-weight:700}
 .sub{color:var(--muted);font-size:14px;margin:2px 0 14px}
 
 .notif{background:#1F2430;color:#fff;border-radius:18px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start;box-shadow:0 6px 18px rgba(0,0,0,.12);margin-bottom:16px}
@@ -35,7 +34,7 @@ h1,h2,h3,.jua{font-family:"Jua","Noto Sans KR",sans-serif;font-weight:400;letter
 .explain b{color:var(--accent)}
 
 .tabs{display:flex;gap:6px;background:#F3EBDD;padding:5px;border-radius:16px;margin-bottom:10px}
-.tab{flex:1;border:0;background:transparent;padding:10px 4px;border-radius:12px;font-size:15px;font-family:"Jua",sans-serif;color:var(--muted);cursor:pointer}
+.tab{flex:1;border:0;background:transparent;padding:10px 4px;border-radius:12px;font-size:15px;font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font-weight:700;color:var(--muted);cursor:pointer}
 .tab.on{background:#fff;color:var(--ink);box-shadow:0 2px 6px rgba(0,0,0,.08)}
 .chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
@@ -80,7 +79,7 @@ h1,h2,h3,.jua{font-family:"Jua","Noto Sans KR",sans-serif;font-weight:400;letter
 .era .baton b{color:var(--ink)}
 
 .cmp{width:100%;border-collapse:separate;border-spacing:0;font-size:14px}
-.cmp th{font-family:"Jua",sans-serif;font-weight:400;font-size:15px;text-align:left;padding:8px;border-bottom:2px solid var(--line);background:#FBF7F0;position:sticky;top:0}
+.cmp th{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font-weight:700;font-size:15px;text-align:left;padding:8px;border-bottom:2px solid var(--line);background:#FBF7F0;position:sticky;top:0}
 .cmp td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.45}
 .cmp td:first-child{white-space:nowrap;color:var(--muted);font-size:13px}
 .pill{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:99px;color:#fff;font-size:13px;font-weight:700;margin:1px 0}
@@ -88,11 +87,11 @@ h1,h2,h3,.jua{font-family:"Jua","Noto Sans KR",sans-serif;font-weight:400;letter
 .lessons{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
 .lesson{background:#FFF4E5;border-radius:16px;padding:14px}
 .lesson .n{font-size:26px}
-.lesson h4{font-family:"Jua",sans-serif;font-weight:400;font-size:17px;margin:4px 0 4px}
+.lesson h4{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font-weight:700;font-size:17px;margin:4px 0 4px}
 .lesson p{margin:0;font-size:14px;line-height:1.55}
 .comeback{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
 .cb{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:6px 10px;font-size:13px}
-.cb .cnt{font-family:"Jua",sans-serif;font-size:16px;color:var(--accent)}
+.cb .cnt{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font-weight:700;font-size:16px;color:var(--accent)}
 
 .foot{font-size:12px;color:var(--muted);line-height:1.6;margin-top:6px}
 .foot a{color:var(--muted)}
@@ -104,14 +103,14 @@ h1,h2,h3,.jua{font-family:"Jua","Noto Sans KR",sans-serif;font-weight:400;letter
 .cmp small{color:var(--muted);font-size:11px}
 .cmp tr.go{cursor:pointer}
 .cmp tr.go:hover td{background:#FFF8EE}
-.chg{display:inline-block;font-family:"Jua",sans-serif;font-size:15px;padding:2px 9px;border-radius:99px;white-space:nowrap}
+.chg{display:inline-block;font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font-weight:700;font-size:15px;padding:2px 9px;border-radius:99px;white-space:nowrap}
 .chg.up{background:#FEE2E2;color:#DC2626}.chg.down{background:#DBEAFE;color:#2563EB}.chg.flat{background:#F1F5F9;color:#475569}
 .chg.big{font-size:22px;padding:6px 14px}
 .scorebox{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#FBF7F0;border-radius:16px;padding:12px 14px;margin-bottom:12px}
-.scorebox .idx{font-family:"Jua",sans-serif;font-size:18px}
+.scorebox .idx{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font-weight:700;font-size:18px}
 .scorebox .line{font-size:13px;color:var(--muted);margin-top:2px}
 .story{border-radius:16px;padding:12px 14px;margin-bottom:10px}
-.story h4,.timeline h4,.sumcol h4{font-family:"Jua",sans-serif;font-weight:400;font-size:16px;margin:0 0 6px}
+.story h4,.timeline h4,.sumcol h4{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font-weight:700;font-size:16px;margin:0 0 6px}
 .story b{font-size:15.5px}
 .story p{margin:6px 0 0;font-size:14.5px;line-height:1.65}
 .story.hero{background:#FFF4E5}.story.winter{background:#EEF2F7}.story.newbie{background:#ECFDF5}
@@ -124,7 +123,7 @@ h1,h2,h3,.jua{font-family:"Jua","Noto Sans KR",sans-serif;font-weight:400;letter
 .sumgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
 .sumcol{border-radius:16px;padding:12px}
 .sumcol.hero{background:#FFF4E5}.sumcol.winter{background:#EEF2F7}.sumcol.newbie{background:#ECFDF5}
-.sumcol small{font-family:"Noto Sans KR";font-size:12px;color:var(--muted);margin-left:4px}
+.sumcol small{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font-size:12px;color:var(--muted);margin-left:4px}
 .si{padding:6px 0;border-bottom:1px dashed rgba(0,0,0,.08)}
 .si:last-child{border-bottom:0}
 .si b{font-size:14px;display:block}
@@ -135,13 +134,13 @@ h1,h2,h3,.jua{font-family:"Jua","Noto Sans KR",sans-serif;font-weight:400;letter
 .gl b{font-size:14.5px}.gl p{margin:3px 0 0;font-size:14px;line-height:1.55;color:#4A4752}
 
 .calcbox{border:2px solid #C7D2FE;background:#F5F7FF;border-radius:18px;padding:12px 14px;margin-bottom:14px}
-.calchead{font-family:"Jua",sans-serif;font-size:17px;margin-bottom:8px}
-.calchead small{font-family:"Noto Sans KR";font-size:11.5px;color:var(--muted);margin-left:4px}
+.calchead{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font-weight:700;font-size:17px;margin-bottom:8px}
+.calchead small{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font-size:11.5px;color:var(--muted);margin-left:4px}
 .calcbox .scorebox{background:#fff}
 .ct{margin:6px 0;font-size:14.5px;line-height:1.6}
-.sub4{font-family:"Jua",sans-serif;font-weight:400;font-size:16px;margin:12px 0 6px}
-.storyhead{font-family:"Jua",sans-serif;font-weight:400;font-size:16px;margin:4px 0 10px;color:var(--muted)}
-.storyhead small{font-family:"Noto Sans KR";font-size:12px}
+.sub4{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font-weight:700;font-size:16px;margin:12px 0 6px}
+.storyhead{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font-weight:700;font-size:16px;margin:4px 0 10px;color:var(--muted)}
+.storyhead small{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font-size:12px}
 .bars{display:flex;flex-direction:column;gap:5px}
 .bar{display:grid;grid-template-columns:minmax(120px,42%) 1fr 62px;gap:8px;align-items:center;font-size:13px}
 .bn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -167,14 +166,14 @@ h1,h2,h3,.jua{font-family:"Jua","Noto Sans KR",sans-serif;font-weight:400;letter
 .mmini.on{background:#F3EBDD;color:var(--ink);font-weight:700}
 .mixgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
 .mixmini{display:flex;flex-direction:column;align-items:center;gap:2px;background:#FBF7F0;border-radius:16px;padding:10px;cursor:pointer;font-size:12.5px;text-align:center}
-.mixmini b{font-family:"Jua",sans-serif;font-weight:400;font-size:15px}
+.mixmini b{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font-weight:700;font-size:15px}
 
 .yslide{display:flex;align-items:center;gap:10px;margin:4px 0 2px}
 .yplay{flex:none;width:40px;height:40px;border-radius:50%;border:0;background:var(--ink);color:#fff;font-size:16px;cursor:pointer}
 .yrange{flex:1}
 .yrange input[type=range]{width:100%;accent-color:#FF7A45;height:28px;cursor:pointer}
 .yends{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted)}
-.yends b{font-family:"Jua",sans-serif;font-weight:400;font-size:17px;color:var(--ink)}
+.yends b{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font-weight:700;font-size:17px;color:var(--ink)}
 #mixRing{touch-action:pan-y;cursor:grab;user-select:none}
 </style>
 </head>
@@ -1001,8 +1000,14 @@ h1,h2,h3,.jua{font-family:"Jua","Noto Sans KR",sans-serif;font-weight:400;letter
     const paths=parts.filter(p=>p.v>0).map(p=>{
       const a1=a+p.v/tot*2*Math.PI; const d=arcPath(c,r1,r0,a,Math.min(a1,a+2*Math.PI-1e-3)); a=a1;
       return `<path d="${d}" fill="${p.c}" stroke="#fff" stroke-width="${size>100?1.5:0.8}"><title>${p.t}</title></path>`;}).join("");
-    const ct=centerTop?`<text x="${c}" y="${c-(centerBottom?4:-6)}" text-anchor="middle" font-size="${size*0.13}" font-family="Jua,sans-serif" fill="#2B2A33">${centerTop}</text>`:"";
-    const cb=centerBottom?`<text x="${c}" y="${c+size*0.11}" text-anchor="middle" font-size="${size*0.075}" fill="#6E6B78">${centerBottom}</text>`:"";
+    const ct=centerTop?`<text x="${c}" y="${c-(centerBottom?4:-6)}" text-anchor="middle" font-size="${size*0.115}" font-family="ChosunIlboMyungjo,serif" font-weight="700" fill="#2B2A33">${centerTop}</text>`:"";
+    let cb="";
+    if(centerBottom){
+      const fs=size*0.05, s=String(centerBottom);
+      let lines=[s];
+      if(s.length>11){ const cut=s.indexOf(" (")>0?s.indexOf(" ("):(s.lastIndexOf("·",Math.ceil(s.length/2)+2)>0?s.lastIndexOf("·",Math.ceil(s.length/2)+2)+1:Math.ceil(s.length/2)); lines=[s.slice(0,cut).trim(),s.slice(cut).trim()]; }
+      cb=lines.map((ln,i)=>`<text x="${c}" y="${c+size*0.085+i*fs*1.25}" text-anchor="middle" font-size="${fs}" fill="#6E6B78">${ln}</text>`).join("");
+    }
     return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" style="max-width:100%">${paths}${ct}${cb}</svg>`;
   }
   function mixParts(mix,yr){
@@ -1050,7 +1055,7 @@ h1,h2,h3,.jua{font-family:"Jua","Noto Sans KR",sans-serif;font-weight:400;letter
     const show=i=>{
       i=Math.max(0,Math.min(ys.length-1,+i)); idx=i; mixYear=ys[i].y;
       const yr=ys[i], prev=i>0?ys[i-1]:null, parts=mixParts(mix,yr), t=topSector(mix,yr);
-      box.querySelector("#mixRing").innerHTML=donutSvg(parts,230,ylab(yr).replace(" (지금)",""),t?`${t.emoji} ${t.name.length>8?t.name.slice(0,8)+"…":t.name}`:"");
+      box.querySelector("#mixRing").innerHTML=donutSvg(parts,230,ylab(yr).replace(" (지금)",""),t?`${t.emoji} ${t.name}`:"");
       const rows=parts.filter(p=>p.v>0).sort((a,b)=>b.v-a.v).map(p=>{
         const pv=prev?(p.k==="gold"?prev.gold:(prev.w[p.k]||0)):null;
         const d=pv==null?"":(p.v-pv);

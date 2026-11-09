@@ -867,8 +867,8 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
       <div class="timeline"><h4>📅 그동안 무슨 일이?</h4>${r.ev.map(([d,t])=>`<div class="ev"><span>${d}</span><p>${t}</p></div>`).join("")}</div>`;
     const ch=calcShortHtml(mode,per.k);
     if(ch){
-      const stale=storyStale();
-      box.insertAdjacentHTML("afterbegin",ch+`<h4 class="storyhead">📰 사람이 정리한 이야기 <small>(${krDate(STORY_DATE)} 마감 기준${stale?" · 오래돼서 접어뒀어요":""})</small></h4>`);
+      const stale=storyStale(mode,per.k);
+      box.insertAdjacentHTML("afterbegin",ch+`<h4 class="storyhead">📰 사람이 정리한 이야기 <small>(${krDate(storyDate(mode,per.k))} 마감 기준${stale?" · 오래돼서 접어뒀어요":""})</small></h4>`);
       if(stale) box.querySelectorAll(".scorebox:not(.calcbox .scorebox),.story,.timeline").forEach(e=>e.style.display="none");
     }
   }
@@ -941,7 +941,10 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
   const pc=x=>x==null?"—":(x>=0?"+":"")+(x*100).toFixed(1)+"%";
   const toY=s=>{const d=new Date(s+"T00:00:00"); const st=new Date(d.getFullYear(),0,1); return d.getFullYear()+(d-st)/(366*864e5);};
   const STORY_DATE="2026-11-06";
-  const storyStale=()=>{if(!DATA||!DATA.asof) return false; const d=new Date(STORY_DATE+"T00:00:00"); d.setDate(d.getDate()+7); return DATA.asof>d.toISOString().slice(0,10);}; // 쓴 날부터 1주일 지나면 접기
+  // 나라·기간별로 이야기를 새로 쓴 날짜 (토요일 정기점검이 한국·중국·미국·대만의 1주일·1달 이야기를 고쳐 쓰고 여기 날짜를 바꿔요)
+  const STORY_DATES={"kr:w1":"2026-11-06","kr:m1":"2026-11-06","cn:w1":"2026-11-06","cn:m1":"2026-11-06","us:w1":"2026-11-06","us:m1":"2026-11-06","tw:w1":"2026-11-06","tw:m1":"2026-11-06"};
+  const storyDate=(m,k)=>STORY_DATES[m+":"+k]||STORY_DATE;
+  const storyStale=(m,k)=>{if(!DATA||!DATA.asof) return false; const d=new Date(storyDate(m,k)+"T00:00:00"); d.setDate(d.getDate()+7); return DATA.asof>d.toISOString().slice(0,10);}; // 쓴 날부터 1주일 지나면 접기
 
   function buildCalc(){
     Object.entries(DATA.markets||{}).forEach(([m,md])=>{

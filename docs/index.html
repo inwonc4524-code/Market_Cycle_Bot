@@ -941,7 +941,7 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
   const pc=x=>x==null?"—":(x>=0?"+":"")+(x*100).toFixed(1)+"%";
   const toY=s=>{const d=new Date(s+"T00:00:00"); const st=new Date(d.getFullYear(),0,1); return d.getFullYear()+(d-st)/(366*864e5);};
   const STORY_DATE="2026-11-06";
-  const storyStale=()=>DATA&&DATA.asof>"2026-11-13";
+  const storyStale=()=>{if(!DATA||!DATA.asof) return false; const d=new Date(STORY_DATE+"T00:00:00"); d.setDate(d.getDate()+7); return DATA.asof>d.toISOString().slice(0,10);}; // 쓴 날부터 1주일 지나면 접기
 
   function buildCalc(){
     Object.entries(DATA.markets||{}).forEach(([m,md])=>{

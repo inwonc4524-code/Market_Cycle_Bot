@@ -841,7 +841,7 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
     const box=$("#recent"); box.innerHTML="";
     // 제목 옆 날짜 = 봇이 계산한 가장 최근 날짜 (없으면 사람이 정리한 이야기 날짜)
     const lastD=DATA&&DATA.markets?(mode==="all"?DATA.asof:(DATA.markets[mode]||{}).last_date):null;
-    $("#recentDate").textContent=`${krDate(lastD||STORY_DATE)} 마감 기준`;
+    $("#recentDate").textContent=(mode==="all"&&DATA&&DATA.markets)?"나라마다 마지막 장 마감일 기준":`${krDate(lastD||STORY_DATE)} 마감 기준`;
     const pl=per.l;
     if(mode==="all"){
       $("#recentTitle").textContent=`🌏 ${pl} 동안 일곱 시장은?`;
@@ -992,9 +992,9 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
     if(!DATA||!DATA.markets) return "";
     const rows=Object.entries(DATA.markets).map(([m,md])=>{const w=md.windows[k]; if(!w||!w.rank||!w.rank.length) return "";
       const t=w.rank[0], b=w.rank[w.rank.length-1];
-      return `<tr><td>${MK[m].f} ${MK[m].n}</td><td><span class="chg ${w.bench>=0?"up":"down"}">${pc(w.bench)}</span></td><td>🦸 ${t.emoji} ${t.name} ${pc(t.ret)}<br>😓 ${b.emoji} ${b.name} ${pc(b.ret)}</td></tr>`;}).join("");
+      const ld=md.last_date?md.last_date.slice(5).replace("-","/").replace(/^0/,"").replace("/0","/"):""; return `<tr><td>${MK[m].f} ${MK[m].n}${ld?`<br><small>${ld} 마감</small>`:""}</td><td><span class="chg ${w.bench>=0?"up":"down"}">${pc(w.bench)}</span></td><td>🦸 ${t.emoji} ${t.name} ${pc(t.ret)}<br>😓 ${b.emoji} ${b.name} ${pc(b.ret)}</td></tr>`;}).join("");
     if(!rows) return "";
-    return `<div class="calcbox"><div class="calchead">🤖 데이터로 계산한 1등·꼴찌 업종 <small>${DATA.asof} 기준${DATA.demo?" · ⚠️ 가짜 데이터":""}</small></div><div class="tblwrap"><table class="cmp"><thead><tr><th>시장</th><th>지수</th><th>1등 / 꼴찌 업종</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+    return `<div class="calcbox"><div class="calchead">🤖 데이터로 계산한 1등·꼴찌 업종 <small>나라마다 마지막 장 마감일 기준${DATA.demo?" · ⚠️ 가짜 데이터":""}</small></div><div class="tblwrap"><table class="cmp"><thead><tr><th>시장</th><th>지수</th><th>1등 / 꼴찌 업종</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
   }
 
 

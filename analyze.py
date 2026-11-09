@@ -711,6 +711,18 @@ def main():
     g = prices.get(GOLD)
     if g is not None:
         data["gold"] = {k: ret(g, n) for k, _, n in WINDOWS[:5]}
+    # 안전장치: 야후가 잠깐 옛날 값을 줄 때(새벽 등) 이미 받은 최신 값을 옛날 값으로 덮어쓰지 않기
+    if not args.demo:
+        try:
+            with open(os.path.join(DOCS, "data.json"), encoding="utf-8") as f:
+                old = json.load(f)
+            for m, md in list(data["markets"].items()):
+                om = (old.get("markets") or {}).get(m)
+                if om and om.get("last_date", "") > md["last_date"]:
+                    print(f"{m}: 새로 받은 값({md['last_date']})이 이미 있는 값({om['last_date']})보다 옛날이라 그대로 둠")
+                    data["markets"][m] = om
+        except Exception as e:
+            print("이전 data.json 비교 못 함:", e)
     dates = [md["last_date"] for md in data["markets"].values()]
     data["asof"] = max(dates) if dates else now.strftime("%Y-%m-%d")
     if missing_all:

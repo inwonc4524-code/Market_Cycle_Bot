@@ -199,7 +199,7 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
   <div class="chips" id="chips"></div>
 
   <div class="card short">
-    <div class="ribbon-title"><h2 id="recentTitle">최근 이야기</h2><span>2026년 11월 6일(금) 마감 기준</span></div>
+    <div class="ribbon-title"><h2 id="recentTitle">최근 이야기</h2><span id="recentDate">2026년 11월 6일(금) 마감 기준</span></div>
     <div id="recent"></div>
   </div>
 
@@ -835,8 +835,13 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
 
   const sign=c=>c.trim().startsWith("+")?"up":(c.trim().startsWith("-")||c.includes("-"))?"down":"flat";
 
+  // 날짜를 "2026년 11월 9일(월)" 모양으로
+  function krDate(s){const d=new Date(s+"T00:00:00"); return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일(${"일월화수목금토"[d.getDay()]})`;}
   function renderShort(){
     const box=$("#recent"); box.innerHTML="";
+    // 제목 옆 날짜 = 봇이 계산한 가장 최근 날짜 (없으면 사람이 정리한 이야기 날짜)
+    const lastD=DATA&&DATA.markets?(mode==="all"?DATA.asof:(DATA.markets[mode]||{}).last_date):null;
+    $("#recentDate").textContent=`${krDate(lastD||STORY_DATE)} 마감 기준`;
     const pl=per.l;
     if(mode==="all"){
       $("#recentTitle").textContent=`🌏 ${pl} 동안 일곱 시장은?`;
@@ -863,7 +868,7 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
     const ch=calcShortHtml(mode,per.k);
     if(ch){
       const stale=storyStale();
-      box.insertAdjacentHTML("afterbegin",ch+`<h4 class="storyhead">📰 사람이 정리한 이야기 <small>(${STORY_DATE} 기준${stale?" · 오래돼서 접어뒀어요":""})</small></h4>`);
+      box.insertAdjacentHTML("afterbegin",ch+`<h4 class="storyhead">📰 사람이 정리한 이야기 <small>(${krDate(STORY_DATE)} 마감 기준${stale?" · 오래돼서 접어뒀어요":""})</small></h4>`);
       if(stale) box.querySelectorAll(".scorebox:not(.calcbox .scorebox),.story,.timeline").forEach(e=>e.style.display="none");
     }
   }

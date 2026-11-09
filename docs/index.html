@@ -974,6 +974,7 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
       <div class="scorebox"><div><div class="idx">${md.bench_name}</div><div class="line">${w.label} 동안 · 업종 평균 ${pc(w.ew)}</div></div><div class="chg big ${w.bench>=0?"up":"down"}">${pc(w.bench)}</div></div>
       <p class="ct">🦸 ${w.text.hero}</p><p class="ct">${md.season}</p><p class="ct">📊 ${w.text.breadth}</p><p class="ct">😓 ${w.text.worst}</p>
       <h4 class="sub4">${w.label} 업종 성적표</h4>${bars(w.rank)}
+      ${w.skipped&&w.skipped.length?`<p class="foot">🔎 자동 검사에서 이번엔 뺀 업종: ${w.skipped.join(", ")}</p>`:""}
       ${md.missing&&md.missing.length?`<p class="foot">데이터를 못 받은 업종: ${md.missing.join(", ")}</p>`:""}</div>`;
   }
 

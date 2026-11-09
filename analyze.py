@@ -50,6 +50,7 @@ WINDOWS = [  # (키, 이름, 거래일 수)
     ("y10", "10년", 2520), ("y20", "20년", 5040),
 ]
 LEAD_DAYS = 126     # 바통 판단: 최근 6개월 성적 1등
+SHORT_CHECK = {"d1": 0.30, "w1": 0.60}   # 1일·1주일에 이보다 크게 움직이면 데이터 오류로 보고 빼기
 JOIN_WAIT = 60                 # 묶음에 새 회사를 넣기까지 기다리는 거래일 수
 MIN_HOLD = 3        # 3달 이상 1등을 지켜야 '바통을 잡았다'고 봐요 (잠깐 1등은 무시)
 MIN_SECTORS = 3     # 업종이 3개 이상 있을 때부터 계산
@@ -417,13 +418,25 @@ def window_table(market, sectors, prices, bench):
         if b is None:
             continue
         rows = []
+        skipped = []
+        bend = bench.dropna().index[-1]
         for sc in sectors:
             s = prices.get(sc["ticker"])
             if s is None:
                 continue
+            s = s.loc[:bend]          # 지수와 같은 날까지만 비교 (지수 값이 늦게 들어온 날 대비)
             r = ret(s, n)
             if r is None:
                 continue
+            # 짧은 기간(1일·1주일) 자동 검사: 지수와 마지막 날짜가 다르거나, 하루에 너무 크게 움직이면 빼기
+            if key in SHORT_CHECK:
+                send = s.dropna().index[-1]
+                if send < bend:
+                    skipped.append(f"{sc['name']}(아직 {send.strftime('%m/%d')} 값)")
+                    continue
+                if abs(r) > SHORT_CHECK[key]:
+                    skipped.append(f"{sc['name']}(값이 이상해요 {r:+.0%})")
+                    continue
             rows.append({"key": sc["key"], "name": sc["name"], "emoji": sc["emoji"],
                          "cat": sc["cat"], "ret": round(r, 5), "rel": round(r - b, 5)})
         if len(rows) < MIN_SECTORS:
@@ -436,6 +449,8 @@ def window_table(market, sectors, prices, bench):
         out[key] = {"label": label, "bench": round(b, 5), "ew": round(ew, 5),
                     "up": up, "n": len(rows), "rank": rows,
                     "text": explain(market, label, rows, b, ew, up)}
+        if skipped:
+            out[key]["skipped"] = skipped
     return out
 
 

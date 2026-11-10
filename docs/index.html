@@ -711,7 +711,7 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
   ];
 
   const PERIODS=[{k:"d1",l:"1일"},{k:"w1",l:"1주일"},{k:"m1",l:"1달"},{k:"m6",l:"6개월"},{y:1},{y:3},{y:5},{y:10},{y:20},{y:30},{y:50},{y:100}];
-  let mode="kr", per={y:20}, years=20, hiKey=null;
+  let mode="kr", per=PERIODS[0], years=20, hiKey=null;   // 처음 열면 1일부터 보여줘요
 
   const $=s=>document.querySelector(s);
   const esc=s=>String(s);
@@ -733,7 +733,7 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
   const chips=$("#chips");
   PERIODS.forEach(p=>{
     const b=document.createElement("button"); const lab=p.l||(p.y+"년");
-    b.className="chip per"+((p.y===20)?" on":""); b.textContent=lab;
+    b.className="chip per"+((p===per)?" on":""); b.textContent=lab;
     b.onclick=()=>{per=p; if(p.y) years=p.y; hiKey=null; document.querySelectorAll(".chip.per").forEach(c=>c.classList.toggle("on",c===b)); render();};
     chips.appendChild(b);
   });

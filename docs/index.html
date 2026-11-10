@@ -562,7 +562,8 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
 
   // ===== 짧은 기간 이야기 (2026년 11월 6일 금요일 마감 기준) =====
   const NONE=["아직 없음","이 기간엔 뚜렷하게 새로 떠오른 업종이 없어요. 겨울이 끝나야 보통 새 주인공이 보여요."];
-  const R={
+  // ⚠️ 이야기 원본은 docs/stories.json 이에요. 여기 있는 R 은 그 파일을 못 받을 때만 쓰는 예비본이에요.
+  let R={
     kr:{
       d1:{line:"코스피 5,018.85 → 5,239.13 (11월 10일 화)",chg:"+4.39%",
         hero:["건설·조선(중공업)·2차전지 (건설 +8.0%)","4일 만에 크게 다시 올랐어요. 건설(+8.0%), 조선·기계 같은 중공업(+7.5%), 전기차 배터리를 만드는 2차전지(+7.3%)가 가장 강했어요. 삼성SDI(+9.9%)·SK하이닉스(+6.7%)·삼성전자(+4.7%)도 크게 올랐어요."],
@@ -950,7 +951,7 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
   const toY=s=>{const d=new Date(s+"T00:00:00"); const st=new Date(d.getFullYear(),0,1); return d.getFullYear()+(d-st)/(366*864e5);};
   const STORY_DATE="2026-11-06";
   // 나라·기간별로 이야기를 새로 쓴 날짜 (토요일 정기점검이 일곱 나라의 1주일·1달 이야기를, 평일 저녁 작업이 1일 이야기를 고쳐 쓰고 여기 날짜를 바꿔요)
-  const STORY_DATES={"kr:w1":"2026-11-06","kr:m1":"2026-11-06","cn:w1":"2026-11-06","cn:m1":"2026-11-06","us:w1":"2026-11-06","us:m1":"2026-11-06","tw:w1":"2026-11-06","tw:m1":"2026-11-06","hk:w1":"2026-11-06","hk:m1":"2026-11-06","kr:d1":"2026-11-10","cn:d1":"2026-11-10","us:d1":"2026-11-09","tw:d1":"2026-11-10","hk:d1":"2026-11-10","jp:d1":"2026-11-10","sg:d1":"2026-11-10","jp:w1":"2026-11-06","jp:m1":"2026-11-06","sg:w1":"2026-11-06","sg:m1":"2026-11-06"};
+  let STORY_DATES={"kr:w1":"2026-11-06","kr:m1":"2026-11-06","cn:w1":"2026-11-06","cn:m1":"2026-11-06","us:w1":"2026-11-06","us:m1":"2026-11-06","tw:w1":"2026-11-06","tw:m1":"2026-11-06","hk:w1":"2026-11-06","hk:m1":"2026-11-06","kr:d1":"2026-11-10","cn:d1":"2026-11-10","us:d1":"2026-11-09","tw:d1":"2026-11-10","hk:d1":"2026-11-10","jp:d1":"2026-11-10","sg:d1":"2026-11-10","jp:w1":"2026-11-06","jp:m1":"2026-11-06","sg:w1":"2026-11-06","sg:m1":"2026-11-06"};
   const storyDate=(m,k)=>STORY_DATES[m+":"+k]||STORY_DATE;
   const storyStale=(m,k)=>{if(!DATA||!DATA.asof) return false; if(k==="d1"){const md=DATA.markets&&DATA.markets[m]; return !!(md&&md.last_date>storyDate(m,k));} // 1일 이야기는 새 장 값이 나오면 바로 접기
     const d=new Date(storyDate(m,k)+"T00:00:00"); d.setDate(d.getDate()+7); return DATA.asof>d.toISOString().slice(0,10);}; // 쓴 날부터 1주일 지나면 접기
@@ -1139,11 +1140,26 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
   let _rw=window.innerWidth;
   window.addEventListener("resize",()=>{ if(Math.abs(window.innerWidth-_rw)>40){_rw=window.innerWidth; if(!per.k) render();} });
   render();
-  fetch("data.json?v="+Date.now()).then(r=>r.ok?r.json():null).then(d=>{
-    if(!d||!d.markets) return; DATA=d; buildCalc();
-    document.querySelectorAll(".chip.mk").forEach(b=>{ if(d.markets[b.dataset.k]) b.textContent+=" 🤖"; });
-    render();
-  }).catch(()=>{});
+  // 최신 값 불러오기: 봇 계산(data.json) + 사람이 정리한 이야기(stories.json)
+  // 처음 열 때, 탭을 누를 때, 앱으로 돌아올 때 새로 받아요 (새로고침 안 해도 됨)
+  let lastFetch=0, fetching=false, firstData=true;
+  function refresh(force){
+    if(fetching||(!force&&Date.now()-lastFetch<20000)) return;
+    fetching=true; lastFetch=Date.now(); const v="?v="+Date.now();
+    Promise.all([
+      fetch("data.json"+v,{cache:"no-store"}).then(r=>r.ok?r.json():null).catch(()=>null),
+      fetch("stories.json"+v,{cache:"no-store"}).then(r=>r.ok?r.json():null).catch(()=>null)
+    ]).then(([d,s])=>{
+      fetching=false; let changed=false;
+      if(s&&s.R){ const js=JSON.stringify(s); if(js!==refresh._s){refresh._s=js; R=s.R; STORY_DATES=s.story_dates||STORY_DATES; changed=true;} }
+      if(d&&d.markets&&(!DATA||d.generated!==DATA.generated)){ DATA=d; buildCalc(); changed=true;
+        if(firstData){firstData=false; document.querySelectorAll(".chip.mk").forEach(b=>{ if(d.markets[b.dataset.k]) b.textContent+=" 🤖"; });} }
+      if(changed) render();
+    });
+  }
+  refresh(true);
+  document.addEventListener("click",e=>{ if(e.target.closest&&e.target.closest(".chip")) refresh(); },true);
+  document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") refresh(); });
 
 })();
 </script>

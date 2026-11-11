@@ -160,20 +160,43 @@ def render(paper, kicker, headline, lines, footer="눌러서 대시보드에서 
     # ── 본문: 항목마다 줄 간격을 넓게, 항목 사이에 옅은 구분선
     f_b = F(37)
     LINE, GAP = 50, 26
-    items = [x for x in (clean(r) for r in lines) if x]
+    items = []
+    for r in lines:
+        if isinstance(r, dict):
+            hd = clean(r.get("head", ""))
+            if hd:
+                items.append({"head": hd, "body": clean(r.get("body", "")), "meta": clean(r.get("meta", ""))})
+        else:
+            c = clean(r)
+            if c:
+                items.append(c)
     per = 3 if len(items) <= 2 else 2          # 긴 항목은 두 줄까지 (속보 요약 등은 세 줄)
+    f_sb = F(31)                                # 기사 요약용 조금 작은 글씨
     for i, t in enumerate(items[:14]):
-        parts = _wrap(d, t, f_b, W - 2 * M - 26, per)
         if i:
             yy = y + GAP // 2 - 2
-            for x in range(M, W - M, 14):          # 항목(나라·테마) 사이 점선
+            for x in range(M, W - M, 14):          # 항목(나라·테마·기사) 사이 점선
                 d.line((x, yy, x + 6, yy), fill="#CFC8B8", width=2)
             y += GAP
         d.rectangle((M, y + 18, M + 10, y + 28), fill=KICK)
+        if isinstance(t, dict):                 # 기사: 제목(굵게) + 요약 + 출처
+            for part in _wrap(d, t["head"], f_b, W - 2 * M - 26, 2):
+                d.text((M + 26, y), part, font=f_b, fill=INK, stroke_width=1, stroke_fill=INK)
+                y += LINE
+            if t.get("body"):
+                y += 4
+                for part in _wrap(d, t["body"], f_sb, W - 2 * M - 26, 4):
+                    _draw_colored(d, (M + 26, y), part, f_sb, W - 2 * M - 26)
+                    y += 42
+            if t.get("meta"):
+                d.text((M + 26, y + 4), t["meta"], font=F(25), fill=GRAY)
+                y += 38
+            continue
+        parts = _wrap(d, t, f_b, W - 2 * M - 26, per)
         for part in parts:
             _draw_colored(d, (M + 26, y), part, f_b, W - 2 * M - 26)
             y += LINE
-    Hh = max(H, int(y) + 24 + 64)
+    Hh = min(max(H, int(y) + 24 + 64), 3000)
     img = img.crop((0, 0, W, Hh))
     d = ImageDraw.Draw(img)
     H_ = Hh

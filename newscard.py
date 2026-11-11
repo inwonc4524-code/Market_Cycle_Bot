@@ -90,8 +90,6 @@ def _wrap(draw, text, font, width, max_lines):
                 break
     if len(lines) < max_lines and cur:
         lines.append(cur)
-    if len(lines) == max_lines and "".join(lines) != text.replace(" ", "")[:0] + "".join(lines):
-        pass
     joined = "".join(lines)
     if len(joined.replace(" ", "")) < len(text.replace(" ", "")):     # 넘친 글은 … 로
         last = lines[-1]
@@ -165,16 +163,17 @@ def render(paper, kicker, headline, lines, footer="눌러서 대시보드에서 
     f_b = F(31)
     room = int((H - 70 - y) // 44)
     shown = 0
-    for raw in lines:
-        t = clean(raw)
-        if not t:
-            continue
+    items = [clean(x) for x in lines]
+    items = [x for x in items if x]
+    per = 3 if len(items) <= 2 else 1          # 줄이 적으면(속보 요약 등) 한 항목을 여러 줄로
+    for t in items:
         if shown >= room:
             break
         d.ellipse((M, y + 14, M + 8, y + 22), fill=INK)
-        _draw_colored(d, (M + 22, y), t, f_b, W - 2 * M - 22)
-        y += 44
-        shown += 1
+        for part in _wrap(d, t, f_b, W - 2 * M - 22, min(per, room - shown)):
+            _draw_colored(d, (M + 22, y), part, f_b, W - 2 * M - 22)
+            y += 44
+            shown += 1
 
     # ── 아랫단
     d.line((M, H - 58, W - M, H - 58), fill=RULE, width=1)

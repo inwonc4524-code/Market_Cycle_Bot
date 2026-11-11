@@ -9,7 +9,7 @@ on:
   workflow_dispatch: {}   # Actions 화면에서 "Run workflow" 버튼으로 바로 실행
   push:                   # 업종 목록이나 계산 코드를 고치면 바로 한 번 실행
     branches: [main]      # (알림은 커밋 메시지에 [알림]이 있을 때만 보냄)
-    paths: ["analyze.py", "sectors.csv", ".github/workflows/cycle-bot.yml"]
+    paths: ["analyze.py", "newscard.py", "sectors.csv", "requirements.txt", ".github/workflows/cycle-bot.yml"]
 
 concurrency:
   group: bot

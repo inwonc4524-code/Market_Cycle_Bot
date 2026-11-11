@@ -15,6 +15,7 @@
 import argparse
 import csv
 import json
+import re
 import os
 from datetime import datetime, timedelta, timezone
 
@@ -612,17 +613,27 @@ def phone_message(data, focus, changes):
     return "\n".join(lines)
 
 
-def send_ntfy(title, message):
-    topic = os.environ.get("NTFY_TOPIC")
-    if not topic:
-        print("NTFY_TOPIC 이 없어서 알림은 건너뜁니다.")
-        return
-    payload = {"topic": topic, "title": title, "message": message, "tags": ["runner"],
-               "click": DASH_URL,
-               "actions": [{"action": "view", "label": "대시보드 열기", "url": DASH_URL}]}
-    r = requests.post("https://ntfy.sh/", data=json.dumps(payload).encode("utf-8"),
-                      headers={"Content-Type": "application/json"}, timeout=20)
-    print("ntfy 전송:", r.status_code)
+def headline(data, focus):
+    """알림 제목용 한 줄: 먼저 보여줄 나라의 지수와 오늘 1등 업종."""
+    order = (["us", "kr", "jp", "tw", "hk", "cn", "sg"] if focus == "US"
+             else ["kr", "jp", "tw", "hk", "cn", "sg", "us"])
+    for m in order:
+        md = data["markets"].get(m)
+        if not md or "d1" not in md["windows"]:
+            continue
+        d1 = md["windows"]["d1"]
+        head = f"{md['bench_name']} {pct(d1['bench'])}"
+        if d1.get("rank"):
+            head += f" · {d1['rank'][0]['name']} 1등"
+        return FLAG[m], head, d1["bench"]
+    return "", "오늘의 시장", 0
+
+
+def send_ntfy(title, message, card=None, tags=None, priority=3):
+    import newscard
+    newscard.send(os.environ.get("NTFY_TOPIC"), title, newscard.tidy(message), click=DASH_URL,
+                  tags=tags or ["runner"], priority=priority,
+                  actions=[{"action": "view", "label": "대시보드 열기", "url": DASH_URL}], card=card)
 
 
 # ───────────────────────── 4. 실행 ─────────────────────────
@@ -755,8 +766,14 @@ def main():
     print(msg)
 
     if not args.no_notify and not args.demo and msg:
-        title = f"🏃 이어달리기 봇 · {now:%m/%d}" + (" · 바통 넘어감!" if changes else "")
-        send_ntfy(title, msg)
+        flag, head, b = headline(data, focus)
+        arrow = "📈" if b > 0 else ("📉" if b < 0 else "➖")
+        title = f"{arrow} {flag} {head}" + (" · 🏃 바통 넘어감!" if changes else "")
+        kicker = "바통 교체" if changes else ("미국 장 마감" if focus == "US" else "아시아 장 마감")
+        big = abs(b) >= 0.03 or bool(changes)        # 크게 움직였거나 바통이 넘어간 날은 더 눈에 띄게
+        card = {"paper": "이어달리기 신문", "kicker": kicker, "headline": head, "lines": [re.sub(r" · 1달 주인공.*", "", x).replace("오늘 1등 ", "1등 ") for x in msg.split("\n")]}
+        send_ntfy(title, msg, card=card, tags=["chart_with_upwards_trend" if b >= 0 else "chart_with_downwards_trend"],
+                  priority=4 if big else 3)
 
 
 if __name__ == "__main__":

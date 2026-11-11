@@ -122,7 +122,7 @@ def render(paper, kicker, headline, lines, footer="눌러서 대시보드에서 
     from PIL import Image, ImageDraw, ImageFont
     fp = _get_font()
     F = lambda s: ImageFont.truetype(fp, s)
-    img = Image.new("RGB", (W, H), PAPER)
+    img = Image.new("RGB", (W, 3000), PAPER)       # 길게 그린 뒤 필요한 만큼 잘라요
     d = ImageDraw.Draw(img)
     M = 52
     date = date or datetime.now(KST)
@@ -159,38 +159,30 @@ def render(paper, kicker, headline, lines, footer="눌러서 대시보드에서 
 
     # ── 본문: 항목마다 줄 간격을 넓게, 항목 사이에 옅은 구분선
     f_b = F(37)
-    LINE, GAP = 50, 20
+    LINE, GAP = 50, 26
     items = [x for x in (clean(r) for r in lines) if x]
-    bottom = H - 64
-    per = 3 if len(items) <= 2 else 1          # 항목이 적으면(속보 요약 등) 한 항목을 여러 줄로
-    wrapped = [_wrap(d, t, f_b, W - 2 * M - 26, per) for t in items]
-    # 몇 개까지 들어가는지 먼저 계산 (다 안 들어가면 '외 N개' 줄 자리를 남겨 둠)
-    fit, yy = 0, y
-    for i, parts in enumerate(wrapped):
-        h_need = len(parts) * LINE + (GAP if i else 0)
-        reserve = 0 if i == len(wrapped) - 1 else 40
-        if yy + h_need + reserve > bottom:
-            break
-        yy += h_need
-        fit += 1
-    for i, parts in enumerate(wrapped[:fit]):
+    per = 3 if len(items) <= 2 else 2          # 긴 항목은 두 줄까지 (속보 요약 등은 세 줄)
+    for i, t in enumerate(items[:14]):
+        parts = _wrap(d, t, f_b, W - 2 * M - 26, per)
         if i:
             yy = y + GAP // 2 - 2
-            for x in range(M, W - M, 14):          # 항목 사이 점선
+            for x in range(M, W - M, 14):          # 항목(나라·테마) 사이 점선
                 d.line((x, yy, x + 6, yy), fill="#CFC8B8", width=2)
             y += GAP
         d.rectangle((M, y + 18, M + 10, y + 28), fill=KICK)
         for part in parts:
             _draw_colored(d, (M + 26, y), part, f_b, W - 2 * M - 26)
             y += LINE
-    if fit < len(wrapped):
-        d.text((M + 26, y + 8), f"…외 {len(wrapped) - fit}곳은 눌러서 확인", font=F(28), fill=GRAY)
+    Hh = max(H, int(y) + 24 + 64)
+    img = img.crop((0, 0, W, Hh))
+    d = ImageDraw.Draw(img)
+    H_ = Hh
 
     # ── 아랫단
-    d.line((M, H - 54, W - M, H - 54), fill=RULE, width=1)
+    d.line((M, H_ - 54, W - M, H_ - 54), fill=RULE, width=1)
     f_f = F(24)
     ft = clean(footer)
-    d.text((W - M - d.textlength(ft + " →", font=f_f), H - 42), ft + " →", font=f_f, fill=GRAY)
+    d.text((W - M - d.textlength(ft + " →", font=f_f), H_ - 42), ft + " →", font=f_f, fill=GRAY)
     buf = io.BytesIO()
     img.save(buf, "PNG", optimize=True)
     return buf.getvalue()
@@ -247,9 +239,12 @@ def send(topic, title, message, click=None, tags=None, priority=3, actions=None,
     return False
 
 
-def tidy(message, link_hint=True):
-    """본문 정리: 빈 줄 여러 개를 하나로, 맨 끝에 '눌러서 보기' 안내."""
-    msg = re.sub(r"\n{3,}", "\n\n", message.strip())
+def tidy(message, link_hint=True, spaced=True):
+    """본문 정리: 나라·테마(줄)마다 빈 줄을 하나씩 띄우고, 맨 끝에 '눌러서 보기' 안내."""
+    msg = message.strip()
+    if spaced:
+        msg = msg.replace("\n", "\n\n")
+    msg = re.sub(r"\n{3,}", "\n\n", msg)
     if link_hint:
         msg += "\n\n👉 눌러서 자세히 보기"
     return msg

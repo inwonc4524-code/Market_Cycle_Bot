@@ -153,9 +153,9 @@ def render(paper, kicker, headline, lines, footer="눌러서 대시보드에서 
     for ln in _wrap(d, clean(headline), f_h, W - 2 * M, 2):
         _draw_colored(d, (M, y), ln, f_h, W - 2 * M)
         y += 66
-    y += 4
+    y += 8
     d.line((M, y, W - M, y), fill=RULE, width=2)
-    y += 14
+    y += 34                                         # 제목과 본문 사이 한 줄 띄우기
 
     # ── 본문: 항목마다 줄 간격을 넓게, 항목 사이에 옅은 구분선
     f_b = F(37)
@@ -247,7 +247,8 @@ def tidy(message, link_hint=True, spaced=True):
     msg = re.sub(r"\n{3,}", "\n\n", msg)
     if link_hint:
         msg += "\n\n👉 눌러서 자세히 보기"
-    return msg
+    # 제목과 본문 사이 한 줄 띄우기 (맨 앞 빈 줄이 지워지지 않게 보이지 않는 글자를 하나 둠)
+    return "\u200b\n" + msg
 
 
 if __name__ == "__main__":      # 시험: python newscard.py → card_test.png

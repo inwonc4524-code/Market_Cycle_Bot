@@ -22,7 +22,7 @@ KST = timezone(timedelta(hours=9))
 FONT_URL = "https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_one@1.0/Chosunilbo_myungjo.woff"
 FONT_CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".fontcache", "ChosunIlboMyungjo.ttf")
 
-W, H = 1200, 630                      # 갤럭시 알림 그림에 잘 맞는 가로 2:1 정도
+W, H = 1200, 680                      # 갤럭시 알림 그림에 잘 맞는 가로로 긴 모양
 PAPER, INK, GRAY, RULE = "#FBF8F1", "#1A1A1A", "#6B6B6B", "#2B2B2B"
 UP, DOWN, KICK = "#C62828", "#1E5AA8", "#B71C1C"   # 한국식: 오르면 빨강, 내리면 파랑
 
@@ -118,68 +118,79 @@ def _draw_colored(draw, xy, text, font, width):
 
 
 def render(paper, kicker, headline, lines, footer="눌러서 대시보드에서 자세히 보기", date=None):
-    """신문 카드 PNG(bytes)를 만들어요."""
+    """신문 카드 PNG(bytes)를 만들어요. 휴대폰에서 작게 보여도 읽히도록 글씨는 크게, 줄 사이는 넉넉하게."""
     from PIL import Image, ImageDraw, ImageFont
     fp = _get_font()
     F = lambda s: ImageFont.truetype(fp, s)
     img = Image.new("RGB", (W, H), PAPER)
     d = ImageDraw.Draw(img)
-    M = 56
+    M = 52
     date = date or datetime.now(KST)
     wk = "월화수목금토일"[date.weekday()]
 
-    # ── 신문 머리 (제호)
-    f_mast = F(58)
+    # ── 신문 머리 (제호) — 작게 해서 본문 자리를 넓힘
+    f_mast = F(46)
     name = clean(paper)
     tw = d.textlength(name, font=f_mast)
-    d.text(((W - tw) / 2, 26), name, font=f_mast, fill=INK, stroke_width=1, stroke_fill=INK)
+    d.text(((W - tw) / 2, 18), name, font=f_mast, fill=INK, stroke_width=1, stroke_fill=INK)
     f_small = F(24)
-    d.text((M, 50), f"{date.year}년 {date.month}월 {date.day}일 ({wk})", font=f_small, fill=GRAY)
-    right = f"{date:%H:%M} 발행"
-    d.text((W - M - d.textlength(right, font=f_small), 50), right, font=f_small, fill=GRAY)
-    d.line((M, 104, W - M, 104), fill=RULE, width=4)
-    d.line((M, 112, W - M, 112), fill=RULE, width=1)
+    d.text((M, 34), f"{date.month}월 {date.day}일 ({wk})", font=f_small, fill=GRAY)
+    right = f"{date:%H:%M}"
+    d.text((W - M - d.textlength(right, font=f_small), 34), right, font=f_small, fill=GRAY)
+    d.line((M, 82, W - M, 82), fill=RULE, width=4)
+    d.line((M, 89, W - M, 89), fill=RULE, width=1)
 
-    # ── 꼭지 (빨간 작은 이름표)
-    y = 134
-    f_k = F(26)
+    # ── 꼭지(빨간 이름표) + 큰 제목
+    y = 106
+    f_k = F(28)
     k = clean(kicker)
     if k:
         kw = d.textlength(k, font=f_k)
-        d.rectangle((M, y, M + kw + 24, y + 40), fill=KICK)
-        d.text((M + 12, y + 5), k, font=f_k, fill="white", stroke_width=1, stroke_fill="white")
+        d.rectangle((M, y, M + kw + 26, y + 42), fill=KICK)
+        d.text((M + 13, y + 5), k, font=f_k, fill="white", stroke_width=1, stroke_fill="white")
         y += 56
-
-    # ── 큰 제목 (최대 2줄)
-    f_h = F(50)
+    f_h = F(52)
     for ln in _wrap(d, clean(headline), f_h, W - 2 * M, 2):
         _draw_colored(d, (M, y), ln, f_h, W - 2 * M)
-        y += 64
-    y += 6
-    d.line((M, y, W - M, y), fill="#BDB6A6", width=1)
-    y += 16
+        y += 66
+    y += 4
+    d.line((M, y, W - M, y), fill=RULE, width=2)
+    y += 14
 
-    # ── 본문 (핵심 줄 몇 개)
-    f_b = F(31)
-    room = int((H - 70 - y) // 44)
-    shown = 0
-    items = [clean(x) for x in lines]
-    items = [x for x in items if x]
-    per = 3 if len(items) <= 2 else 1          # 줄이 적으면(속보 요약 등) 한 항목을 여러 줄로
-    for t in items:
-        if shown >= room:
+    # ── 본문: 항목마다 줄 간격을 넓게, 항목 사이에 옅은 구분선
+    f_b = F(37)
+    LINE, GAP = 50, 20
+    items = [x for x in (clean(r) for r in lines) if x]
+    bottom = H - 64
+    per = 3 if len(items) <= 2 else 1          # 항목이 적으면(속보 요약 등) 한 항목을 여러 줄로
+    wrapped = [_wrap(d, t, f_b, W - 2 * M - 26, per) for t in items]
+    # 몇 개까지 들어가는지 먼저 계산 (다 안 들어가면 '외 N개' 줄 자리를 남겨 둠)
+    fit, yy = 0, y
+    for i, parts in enumerate(wrapped):
+        h_need = len(parts) * LINE + (GAP if i else 0)
+        reserve = 0 if i == len(wrapped) - 1 else 40
+        if yy + h_need + reserve > bottom:
             break
-        d.ellipse((M, y + 14, M + 8, y + 22), fill=INK)
-        for part in _wrap(d, t, f_b, W - 2 * M - 22, min(per, room - shown)):
-            _draw_colored(d, (M + 22, y), part, f_b, W - 2 * M - 22)
-            y += 44
-            shown += 1
+        yy += h_need
+        fit += 1
+    for i, parts in enumerate(wrapped[:fit]):
+        if i:
+            yy = y + GAP // 2 - 2
+            for x in range(M, W - M, 14):          # 항목 사이 점선
+                d.line((x, yy, x + 6, yy), fill="#CFC8B8", width=2)
+            y += GAP
+        d.rectangle((M, y + 18, M + 10, y + 28), fill=KICK)
+        for part in parts:
+            _draw_colored(d, (M + 26, y), part, f_b, W - 2 * M - 26)
+            y += LINE
+    if fit < len(wrapped):
+        d.text((M + 26, y + 8), f"…외 {len(wrapped) - fit}곳은 눌러서 확인", font=F(28), fill=GRAY)
 
     # ── 아랫단
-    d.line((M, H - 58, W - M, H - 58), fill=RULE, width=1)
+    d.line((M, H - 54, W - M, H - 54), fill=RULE, width=1)
     f_f = F(24)
     ft = clean(footer)
-    d.text((W - M - d.textlength(ft + " →", font=f_f), H - 46), ft + " →", font=f_f, fill=GRAY)
+    d.text((W - M - d.textlength(ft + " →", font=f_f), H - 42), ft + " →", font=f_f, fill=GRAY)
     buf = io.BytesIO()
     img.save(buf, "PNG", optimize=True)
     return buf.getvalue()

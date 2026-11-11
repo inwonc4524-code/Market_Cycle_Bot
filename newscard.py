@@ -187,10 +187,17 @@ def render(paper, kicker, headline, lines, footer="눌러서 대시보드에서 
 
 def _upload(topic, png):
     """그림을 ntfy 에 올려 주소를 받아요 (구독자 없는 따로 칸에 올려서 알림이 두 번 가지 않게)."""
+    # (주의) "Cache: no" 를 넣으면 ntfy 가 그림을 저장하지 않아서 휴대폰에서 '다운로드할 수 없음'이 떠요.
     r = requests.put(f"https://ntfy.sh/{topic}_card", data=png,
-                     headers={"Filename": "news.png", "Cache": "no"}, timeout=30)
+                     headers={"Filename": "news.png"}, timeout=30)
     r.raise_for_status()
-    return r.json()["attachment"]["url"]
+    att = r.json().get("attachment") or {}
+    if not att.get("url"):
+        raise RuntimeError("ntfy 가 그림 주소를 돌려주지 않았어요")
+    # 주소가 실제로 열리는지 확인 (안 열리면 그림 없이 글자만 보내요)
+    chk = requests.get(att["url"], timeout=20)
+    chk.raise_for_status()
+    return att["url"]
 
 
 def send(topic, title, message, click=None, tags=None, priority=3, actions=None, card=None):

@@ -42,7 +42,7 @@ jobs:
           M="ASIA"; NB=""; KEY=""; QUIET=""
           case "$S" in
             "23 21 * * 1-5"|"53 21 * * 1-5") M="US"; NB="06:35"; KEY="morning";;
-            "7 9 * * 1-5"|"37 9 * * 1-5") M="ASIA"; NB="18:10"; KEY="evening";;
+            "7 9 * * 1-5"|"37 9 * * 1-5") M="ASIA"; NB="18:11"; KEY="evening";;
             "47 6 * * 1-5"|"17 8 * * 1-5") M="ASIA"; QUIET=1;;
           esac
           D=$(TZ=Asia/Seoul date +%F)

@@ -146,6 +146,8 @@ def daily_limit(t):
 def bad_series(s, t):
     """야후 가격이 망가진 회사 찾기: 하루에 크게 튀었다가 며칠 안에 되돌아오는 일이 여러 번 있거나,
     아주 큰 하루 움직임이 너무 자주 있으면 데이터 오류로 봐요 (예: 2026-11 싱가포르 타이베브 20년 +12억 배)."""
+    if daily_limit(t) < 0.6:      # 중국·대만은 가격제한폭으로 이미 걸러져서 따로 빼지 않아요
+        return False
     s = s.dropna()
     if len(s) < 30:
         return False

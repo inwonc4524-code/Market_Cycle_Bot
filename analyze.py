@@ -100,6 +100,38 @@ def fetch_prices(tickers):
     return out
 
 
+# 장이 아직 안 끝난 나라는 오늘 가격(장 중 가격)을 빼고 어제 마감까지만 써요.
+# (나라마다 장 마감 뒤에 봇을 한 번씩 돌리기 때문에, 다른 나라는 아직 장 중일 수 있어요)
+CLOSE_AT = {"kr": ("Asia/Seoul", 15, 30), "jp": ("Asia/Tokyo", 15, 30), "tw": ("Asia/Taipei", 13, 30),
+            "hk": ("Asia/Hong_Kong", 16, 0), "cn": ("Asia/Shanghai", 15, 0), "sg": ("Asia/Singapore", 17, 0),
+            "us": ("America/New_York", 16, 0)}
+
+
+def trim_open_sessions(prices, sectors):
+    """마감 10분 뒤가 안 된 나라의 '오늘' 가격은 빼요. 뺀 나라 목록을 돌려줘요."""
+    from zoneinfo import ZoneInfo
+    mk = {b[0]: m for m, b in BENCH.items()}
+    for s in sectors:
+        for t in s["ticker"].split("|"):
+            mk.setdefault(t, s["market"])
+    cut = []
+    for m, (tz, hh, mm) in CLOSE_AT.items():
+        now = datetime.now(ZoneInfo(tz))
+        done = now.replace(hour=hh, minute=mm, second=0, microsecond=0) + timedelta(minutes=10)
+        if now.weekday() < 5 and now < done:
+            today = pd.Timestamp(now.date())
+            n = 0
+            for t, ser in list(prices.items()):
+                if mk.get(t) == m and len(ser) and pd.Timestamp(ser.index[-1]).normalize() == today:
+                    prices[t] = ser.iloc[:-1]
+                    n += 1
+            if n:
+                cut.append(f"{FLAG[m]}({n})")
+    if cut:
+        print("아직 장 중이라 오늘 가격을 뺀 나라:", ", ".join(cut))
+    return cut
+
+
 def daily_limit(t):
     """하루에 움직일 수 있는 최대 폭(가격제한폭). 넘으면 데이터 오류로 봐요.
     (2026-11-08 배움: 중국 의약·바이오 20년 수익률이 503배로 부풂 — 무상증자 보정 오류)"""
@@ -648,6 +680,8 @@ def main():
     singles = {t for s in sectors for t in s["ticker"].split("|")}
     tickers = sorted(singles | {b[0] for b in BENCH.values()} | {GOLD})
     prices = demo_prices(tickers) if args.demo else fetch_prices(tickers)
+    if not args.demo:
+        trim_open_sessions(prices, sectors)
     for s in sectors:                      # 여러 회사를 묶은 업종 만들기
         if "|" in s["ticker"]:
             b = basket(prices, s["ticker"])

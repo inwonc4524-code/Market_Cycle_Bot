@@ -8,7 +8,11 @@ on:
     # 한국시간 화~토 오전 6시 23분·53분 — 미국장 마감 뒤 (미국 소식 먼저)
     - cron: "23 21 * * 1-5"
     - cron: "53 21 * * 1-5"
-    # 한국시간 월~금 오후 6시 7분·37분 — 아시아 여섯 나라 장 모두 마감 뒤
+    # 한국시간 월~금 오후 3시 47분 — 한국·일본·대만 장 마감 뒤 (화면만 새로, 알림 없음)
+    - cron: "47 6 * * 1-5"
+    # 한국시간 월~금 오후 5시 17분 — 중국·홍콩 장 마감 뒤 (화면만 새로, 알림 없음)
+    - cron: "17 8 * * 1-5"
+    # 한국시간 월~금 오후 6시 7분·37분 — 아시아 여섯 나라 장 모두 마감 뒤 (저녁 알림)
     - cron: "7 9 * * 1-5"
     - cron: "37 9 * * 1-5"
   workflow_dispatch: {}   # Actions 화면에서 "Run workflow" 버튼으로 바로 실행
@@ -35,13 +39,15 @@ jobs:
         id: plan
         run: |
           S="${{ github.event.schedule }}"
-          M="ASIA"; NB=""; KEY=""
+          M="ASIA"; NB=""; KEY=""; QUIET=""
           case "$S" in
             "23 21 * * 1-5"|"53 21 * * 1-5") M="US"; NB="06:35"; KEY="morning";;
             "7 9 * * 1-5"|"37 9 * * 1-5") M="ASIA"; NB="18:10"; KEY="evening";;
+            "47 6 * * 1-5"|"17 8 * * 1-5") M="ASIA"; QUIET=1;;
           esac
           D=$(TZ=Asia/Seoul date +%F)
           SKIP=""
+          if [ -n "$QUIET" ]; then SKIP=1; echo "장 마감한 나라 화면만 새로 만들어요 (알림 없음)"; fi
           if [ -n "$KEY" ] && grep -qx "$D $KEY" docs/alerts_sent.txt 2>/dev/null; then
             SKIP=1; echo "오늘 '$KEY' 알림은 먼저 시작한 실행이 이미 보냈어요 → 이번엔 화면만 새로 만들어요"
           fi

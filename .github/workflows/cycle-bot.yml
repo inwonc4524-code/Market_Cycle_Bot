@@ -2,10 +2,15 @@ name: 이어달리기 봇
 
 on:
   schedule:
-    # 한국시간 화~토 오전 7시 33분 — 미국장 마감 뒤 (미국 소식 먼저)
-    - cron: "33 22 * * 1-5"
-    # 한국시간 월~금 오후 6시 23분 — 한국·일본·대만·중국·홍콩·싱가포르장 모두 마감 뒤
-    - cron: "23 9 * * 1-5"
+    # GitHub 예약은 30분~1시간씩 늦게 시작할 때가 많아서:
+    #  ① 같은 일을 30분 간격으로 두 번 예약 → 먼저 시작한 쪽이 알림을 보내고, 나중 쪽은 화면만 새로 만들어요
+    #  ② 너무 일찍 시작하면 마감 가격이 확정될 때까지 기다렸다가 계산해요
+    # 한국시간 화~토 오전 6시 23분·53분 — 미국장 마감 뒤 (미국 소식 먼저)
+    - cron: "23 21 * * 1-5"
+    - cron: "53 21 * * 1-5"
+    # 한국시간 월~금 오후 6시 7분·37분 — 아시아 여섯 나라 장 모두 마감 뒤
+    - cron: "7 9 * * 1-5"
+    - cron: "37 9 * * 1-5"
   workflow_dispatch: {}   # Actions 화면에서 "Run workflow" 버튼으로 바로 실행
   push:                   # 업종 목록이나 계산 코드를 고치면 바로 한 번 실행
     branches: [main]      # (알림은 커밋 메시지에 [알림]이 있을 때만 보냄)
@@ -26,6 +31,23 @@ jobs:
         with:
           ref: main   # 앞선 실행이 저장한 최신 결과(바통 기억)부터 이어서 계산
 
+      - name: 이번 실행이 할 일 정하기
+        id: plan
+        run: |
+          S="${{ github.event.schedule }}"
+          M="ASIA"; NB=""; KEY=""
+          case "$S" in
+            "23 21 * * 1-5"|"53 21 * * 1-5") M="US"; NB="06:35"; KEY="morning";;
+            "7 9 * * 1-5"|"37 9 * * 1-5") M="ASIA"; NB="18:10"; KEY="evening";;
+          esac
+          D=$(TZ=Asia/Seoul date +%F)
+          SKIP=""
+          if [ -n "$KEY" ] && grep -qx "$D $KEY" docs/alerts_sent.txt 2>/dev/null; then
+            SKIP=1; echo "오늘 '$KEY' 알림은 먼저 시작한 실행이 이미 보냈어요 → 이번엔 화면만 새로 만들어요"
+          fi
+          echo "market=$M" >> "$GITHUB_OUTPUT"; echo "not_before=$NB" >> "$GITHUB_OUTPUT"
+          echo "key=$KEY" >> "$GITHUB_OUTPUT"; echo "skip=$SKIP" >> "$GITHUB_OUTPUT"
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -34,11 +56,24 @@ jobs:
       - name: 패키지 설치
         run: pip install -r requirements.txt
 
+      - name: 너무 일찍 시작했으면 마감 가격이 나올 때까지 기다리기
+        if: steps.plan.outputs.not_before != '' && steps.plan.outputs.skip != '1'
+        run: |
+          T=$(TZ=Asia/Seoul date -d "$(TZ=Asia/Seoul date +%F) ${{ steps.plan.outputs.not_before }}" +%s)
+          N=$(date +%s)
+          if [ "$N" -lt "$T" ]; then echo "$((T-N))초 기다려요"; sleep $((T-N)); else echo "기다릴 필요 없어요"; fi
+
       - name: 업종 계산 + 휴대폰 알림
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-          NOTIFY_FOCUS: ${{ github.event.schedule == '33 22 * * 1-5' && 'US' || 'ASIA' }}
-        run: python analyze.py ${{ github.event_name == 'push' && !contains(github.event.head_commit.message, '[알림]') && '--no-notify' || '' }}
+          NOTIFY_FOCUS: ${{ steps.plan.outputs.market }}
+        run: python analyze.py ${{ ((github.event_name == 'push' && !contains(github.event.head_commit.message, '[알림]')) || steps.plan.outputs.skip == '1') && '--no-notify' || '' }}
+
+      - name: 알림 보낸 기록 남기기 (같은 알림을 두 번 보내지 않게)
+        if: steps.plan.outputs.key != '' && steps.plan.outputs.skip != '1'
+        run: |
+          echo "$(TZ=Asia/Seoul date +%F) ${{ steps.plan.outputs.key }}" >> docs/alerts_sent.txt
+          tail -n 60 docs/alerts_sent.txt > /tmp/a && mv /tmp/a docs/alerts_sent.txt
 
       - name: 대시보드 저장
         run: |

@@ -143,6 +143,25 @@ def daily_limit(t):
     return 0.6
 
 
+def bad_series(s, t):
+    """야후 가격이 망가진 회사 찾기: 하루에 크게 튀었다가 며칠 안에 되돌아오는 일이 여러 번 있거나,
+    아주 큰 하루 움직임이 너무 자주 있으면 데이터 오류로 봐요 (예: 2026-11 싱가포르 타이베브 20년 +12억 배)."""
+    s = s.dropna()
+    if len(s) < 30:
+        return False
+    r = s.pct_change().iloc[5:]
+    lim = 0.31 if t.endswith((".KS", ".KQ")) else max(min(daily_limit(t), 0.31), 0.25)
+    big = r.abs() > lim + 0.02
+    rev = 0
+    vals = r.values
+    for i in range(len(vals) - 1):
+        if abs(vals[i]) > lim + 0.02:
+            nxt = vals[i + 1:i + 4]
+            if len(nxt) and ((vals[i] > 0 and nxt.min() < -0.18) or (vals[i] < 0 and nxt.max() > 0.18)):
+                rev += 1
+    return rev >= 3 or int(big.sum()) >= 12
+
+
 def basket(prices, ticker):
     """'A|B|C' 처럼 여러 회사를 묶은 업종의 가격을 만들어요.
     처음에 똑같은 돈을 나눠 넣고 그대로 들고 있는 방식(사서 보유)으로 계산해서,
@@ -690,6 +709,18 @@ def main():
     prices = demo_prices(tickers) if args.demo else fetch_prices(tickers)
     if not args.demo:
         trim_open_sessions(prices, sectors)
+    # 데이터가 망가진 회사는 계산에서 빼기 (대시보드에 '데이터 오류로 뺀 회사'로 표시)
+    bad_data = {}
+    for s in sectors:
+        if "|" not in s["ticker"]:
+            continue
+        for t in s["ticker"].split("|"):
+            if t in prices and bad_series(prices[t], t):
+                bad_data.setdefault(s["market"], set()).add(t)
+    for m, ts in bad_data.items():
+        for t in ts:
+            prices.pop(t, None)
+            print(f"  ! 데이터 오류로 뺀 회사: {m} {t}")
     for s in sectors:                      # 여러 회사를 묶은 업종 만들기
         if "|" in s["ticker"]:
             b = basket(prices, s["ticker"])
@@ -697,7 +728,8 @@ def main():
                 prices[s["ticker"]] = b
 
     # 링 그래프용: 대표 회사 덩치 + 환율
-    cap_t = sorted({t for s in sectors for t in cap_list(s)})
+    bad_all = set().union(*bad_data.values()) if bad_data else set()
+    cap_t = sorted({t for s in sectors for t in cap_list(s)} - bad_all)
     fx_t = sorted(set(FX.values()))
     raw, caps, hist = (demo_raw_and_caps(cap_t + fx_t) if args.demo else fetch_raw_and_caps(cap_t + fx_t))
     capser = {}
@@ -742,7 +774,8 @@ def main():
             "last_date": bench.index[-1].strftime("%Y-%m-%d"),
             "windows": wins, "eras": eras, "winters": w_list, "now": now_state,
             "season": season_text(m, now_state), "missing": missing, "mix": mix,
-            "cap_missing": [t for t in cap_missing if any(t in cap_list(s) for s in secs)],
+            "cap_missing": [t for t in cap_missing if t not in bad_all and any(t in cap_list(s) for s in secs)],
+            "bad_data": sorted(bad_data.get(m, [])),
             "since": min((prices[s["ticker"]].index[0] for s in secs if s["ticker"] in prices),
                          default=bench.index[0]).strftime("%Y-%m-%d"),
         }

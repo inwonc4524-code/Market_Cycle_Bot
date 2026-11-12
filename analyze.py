@@ -519,7 +519,13 @@ def baton_eras(sectors, prices, bench):
     names = {sc["ticker"]: sc for sc in sectors}
     frame = pd.DataFrame({t: prices[t] for t in names if t in prices}).reindex(bench.index).ffill(limit=5)
     leaders = []
-    for d in month_ends(bench.index):
+    ends = month_ends(bench.index)
+    # 아직 끝나지 않은 이번 달(데이터 마지막 날)은 1등 투표에 넣지 않아요.
+    # (넣으면 그날그날 1등이 바뀔 때마다 바통이 넘어갔다 돌아왔다 하는 가짜 알림이 생겨요)
+    last_day = bench.index[-1]
+    if ends and ends[-1] == last_day:
+        ends = ends[:-1]
+    for d in ends:
         pos = frame.index.get_loc(d)
         if pos < LEAD_DAYS:
             continue
@@ -556,6 +562,8 @@ def baton_eras(sectors, prices, bench):
         merged[1]["start"] = merged[0]["start"]
         merged[1]["months"] += merged[0]["months"]
         merged = merged[1:]
+    if merged:
+        merged[-1]["end"] = last_day        # 지금 달리는 주자는 오늘까지
     eras = []
     for i, run in enumerate(merged):
         sc = names[run["t"]]
@@ -802,7 +810,7 @@ def main():
     if not args.no_notify and not args.demo and msg:
         flag, head, b = headline(data, focus)
         arrow = "📈" if b > 0 else ("📉" if b < 0 else "➖")
-        title = f"{arrow} {flag} {head}" + (" · 🏃 바통 넘어감!" if changes else "")
+        title = f"{flag} {head}" + (" · 🏃 바통 넘어감!" if changes else "")   # 📈/📉 는 태그가 붙여줘요
         kicker = "바통 교체" if changes else ("미국 장 마감" if focus == "US" else "아시아 장 마감")
         big = abs(b) >= 0.03 or bool(changes)        # 크게 움직였거나 바통이 넘어간 날은 더 눈에 띄게
         card = {"paper": "이어달리기 신문", "kicker": kicker, "headline": head, "lines": [re.sub(r" · 1달 주인공.*", "", x).replace("오늘 1등 ", "1등 ") for x in msg.split("\n")]}

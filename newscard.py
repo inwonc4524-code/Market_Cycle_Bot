@@ -56,14 +56,23 @@ def _get_font():
     return path
 
 
+# 글씨체에 없는 글자는 비슷한 글자로 바꿔 써요 (예: 가운뎃점 · 이 없으면 ∙ → ・ → , )
+_SUBS = {"·": ["∙", "・", "•", ", "], "→": ["⟶", "->"], "←": ["<-"], "—": ["–", "-"], "–": ["-"],
+         "…": ["..."], "‘": ["'"], "’": ["'"], "“": ['"'], "”": ['"'], "−": ["-"], "▲": ["+"], "▼": ["-"]}
+
+
 def clean(text):
-    """글씨체에 없는 글자(이모지 등)를 빼고 공백을 정리해요."""
+    """글씨체에 없는 글자(이모지 등)를 빼거나 비슷한 글자로 바꾸고 공백을 정리해요."""
     out = []
     for ch in str(text):
         cp = ord(ch)
         if ch in "\n\t ":
             out.append(" ")
         elif _cmap is not None and cp not in _cmap:
+            for alt in _SUBS.get(ch, []):
+                if all(ord(c) in _cmap for c in alt):
+                    out.append(alt)
+                    break
             continue
         elif _cmap is None and (cp >= 0x1F000 or 0x2600 <= cp <= 0x27BF or 0xFE00 <= cp <= 0xFE0F):
             continue

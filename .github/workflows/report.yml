@@ -1,0 +1,25 @@
+name: 점검 보고 알림
+
+on:
+  push:
+    branches: [main]
+    paths: ["reports/*.json"]
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q requests pillow fonttools
+      - name: 새로 올라온 보고 보내기
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: |
+          for f in $(git diff --name-only HEAD~1 HEAD -- reports/ | grep '\.json$'); do
+            [ -f "$f" ] && python send_report.py "$f"
+          done

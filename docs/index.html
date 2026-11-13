@@ -954,7 +954,7 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
   let STORY_DATES={"kr:w1":"2026-11-06","kr:m1":"2026-11-06","cn:w1":"2026-11-06","cn:m1":"2026-11-06","us:w1":"2026-11-06","us:m1":"2026-11-06","tw:w1":"2026-11-06","tw:m1":"2026-11-06","hk:w1":"2026-11-06","hk:m1":"2026-11-06","kr:d1":"2026-11-10","cn:d1":"2026-11-10","us:d1":"2026-11-09","tw:d1":"2026-11-10","hk:d1":"2026-11-10","jp:d1":"2026-11-10","sg:d1":"2026-11-10","jp:w1":"2026-11-06","jp:m1":"2026-11-06","sg:w1":"2026-11-06","sg:m1":"2026-11-06"};
   const storyDate=(m,k)=>STORY_DATES[m+":"+k]||STORY_DATE;
   const storyStale=(m,k)=>{if(!DATA||!DATA.asof) return false; if(k==="d1"){const md=DATA.markets&&DATA.markets[m]; return !!(md&&md.last_date>storyDate(m,k));} // 1일 이야기는 새 장 값이 나오면 바로 접기
-    const d=new Date(storyDate(m,k)+"T00:00:00"); d.setDate(d.getDate()+7); return DATA.asof>d.toISOString().slice(0,10);}; // 쓴 날부터 1주일 지나면 접기
+    const d=new Date(storyDate(m,k)+"T00:00:00"); d.setDate(d.getDate()+(k==="m6"?38:7)); /* 1주일·1달은 매주 새로 써서 7일, 6개월은 매달 새로 써서 38일 */ return DATA.asof>d.toISOString().slice(0,10);}; // 쓴 날부터 1주일 지나면 접기
 
   function buildCalc(){
     Object.entries(DATA.markets||{}).forEach(([m,md])=>{

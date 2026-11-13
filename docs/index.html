@@ -172,6 +172,7 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
 .yplay{flex:none;width:40px;height:40px;border-radius:50%;border:0;background:var(--ink);color:#fff;font-size:16px;cursor:pointer}
 .yrange{flex:1}
 #tabs{position:sticky;top:0;z-index:50;background:var(--bg);margin:0 -14px 12px;padding:8px 14px;box-shadow:0 4px 8px -6px rgba(0,0,0,.18)}
+.story.sum ul,.story.words ul{margin:6px 0 0;padding-left:20px;line-height:1.7}.story.sum li,.story.words li{margin:3px 0}.story.detail b{display:block;margin-top:10px}.story.detail p{margin:4px 0 6px;line-height:1.75}
 .mixtabs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;margin-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}.mixtabs::-webkit-scrollbar{display:none}.mixtabs .chip{flex:0 0 auto;font-size:13px;padding:6px 11px}
 .yrange input[type=range]{width:100%;accent-color:#FF7A45;height:28px;cursor:pointer}
 .yends{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted)}
@@ -846,6 +847,7 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
 
   // 날짜를 "2026년 11월 9일(월)" 모양으로
   function krDate(s){const d=new Date(s+"T00:00:00"); return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일(${"일월화수목금토"[d.getDay()]})`;}
+  const br=s=>String(s==null?"":s).replace(/\n/g,"<br>");      // 이야기 안의 줄바꿈
   function renderShort(){
     const box=$("#recent"); box.innerHTML="";
     // 제목 옆 날짜 = 봇이 계산한 가장 최근 날짜 (없으면 사람이 정리한 이야기 날짜)
@@ -870,10 +872,13 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
     $("#recentTitle").textContent=`${m.f} ${m.n} · 최근 ${pl} 이야기`;
     box.innerHTML=`
       <div class="scorebox"><div><div class="idx">${m.idx}</div><div class="line">${r.line}</div></div><div class="chg big ${sign(r.chg)}">${r.chg}</div></div>
-      <div class="story hero"><h4>🦸 이 기간 잘 버틴 주인공</h4><b>${r.hero[0]}</b><p>${r.hero[1]}</p></div>
-      <div class="story winter"><h4>❄️ 겨울(위기)은 무엇이었나</h4><b>${r.winter[0]}</b><p>${r.winter[1]}</p></div>
-      <div class="story newbie"><h4>🌱 새 주인공이 나왔을까?</h4><b>${r.next[0]}</b><p>${r.next[1]}</p></div>
-      <div class="timeline"><h4>📅 그동안 무슨 일이?</h4>${r.ev.map(([d,t])=>`<div class="ev"><span>${d}</span><p>${t}</p></div>`).join("")}</div>`;
+      ${r.summary&&r.summary.length?`<div class="story sum"><h4>📌 한눈에 보기</h4><ul>${r.summary.map(x=>`<li>${x}</li>`).join("")}</ul></div>`:""}
+      <div class="story hero"><h4>🦸 이 기간 잘 버틴 주인공</h4><b>${r.hero[0]}</b><p>${br(r.hero[1])}</p></div>
+      <div class="story winter"><h4>❄️ 겨울(위기)은 무엇이었나</h4><b>${r.winter[0]}</b><p>${br(r.winter[1])}</p></div>
+      <div class="story newbie"><h4>🌱 새 주인공이 나왔을까?</h4><b>${r.next[0]}</b><p>${br(r.next[1])}</p></div>
+      ${r.detail&&r.detail.length?`<div class="story detail"><h4>📖 이야기로 자세히</h4>${r.detail.map(([t,x])=>`<b>${t}</b><p>${br(x)}</p>`).join("")}</div>`:""}
+      <div class="timeline"><h4>📅 그동안 무슨 일이?</h4>${r.ev.map(([d,t])=>`<div class="ev"><span>${d}</span><p>${t}</p></div>`).join("")}</div>
+      ${r.words&&r.words.length?`<div class="story words"><h4>📚 어려운 말 풀이</h4><ul>${r.words.map(([w,e])=>`<li><b>${w}</b> — ${e}</li>`).join("")}</ul></div>`:""}`;
     const ch=calcShortHtml(mode,per.k);
     if(ch){
       const stale=storyStale(mode,per.k);

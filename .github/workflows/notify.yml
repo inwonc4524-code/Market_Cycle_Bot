@@ -1,0 +1,39 @@
+name: 점검 완료 알림
+
+# 토요일 정기점검 같은 Claude 작업이 끝날 때 불러서 휴대폰(ntfy)으로 짧은 알림을 보내요.
+# 사용: gh workflow run notify.yml -R inwonc4524-code/Market_Cycle_Bot --ref main -f title="..." -f message="..."
+on:
+  workflow_dispatch:
+    inputs:
+      title:
+        description: "알림 제목"
+        required: true
+        type: string
+      message:
+        description: "알림 내용 (짧게)"
+        required: true
+        type: string
+
+concurrency:
+  group: notify
+  cancel-in-progress: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 휴대폰 알림 보내기
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          TITLE: ${{ inputs.title }}
+          MESSAGE: ${{ inputs.message }}
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request
+          body = {"topic": os.environ["NTFY_TOPIC"], "title": os.environ["TITLE"][:120],
+                  "message": os.environ["MESSAGE"][:3500], "tags": ["wrench"], "priority": 3,
+                  "click": "https://inwonc4524-code.github.io/Market_Cycle_Bot/"}
+          req = urllib.request.Request("https://ntfy.sh", data=json.dumps(body).encode(),
+                                       headers={"Content-Type": "application/json"})
+          print(urllib.request.urlopen(req, timeout=20).status)
+          PY

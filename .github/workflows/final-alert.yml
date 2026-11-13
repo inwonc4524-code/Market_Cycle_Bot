@@ -1,0 +1,42 @@
+name: 하루 마무리 알림
+
+# 아시아 여섯 나라의 저녁 화면 업데이트와 1일 이야기가 모두 끝나면 "오늘 정리 끝" 알림을 한 번만 보내요.
+# - Claude 이야기 작업(마지막 차례)이 끝날 때 이 실행을 바로 불러요 (workflow_dispatch)
+# - 혹시 놓쳐도 아래 예약 시각에 다시 확인해요. 이미 보냈으면 아무것도 안 해요.
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "23 10 * * 1-5"   # 한국시간 월~금 저녁 7시 23분
+    - cron: "53 10 * * 1-5"   # 한국시간 월~금 저녁 7시 53분
+
+concurrency:
+  group: final-alert
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: 패키지 설치
+        run: pip install -r requirements.txt
+      - name: 조건이 맞으면 마무리 알림
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: python final_alert.py
+      - name: 보낸 기록 저장
+        run: |
+          git config user.name "cycle-bot"
+          git config user.email "cycle-bot@users.noreply.github.com"
+          git add docs/alerts_sent.txt
+          git commit -m "하루 마무리 알림 기록 $(TZ=Asia/Seoul date +%F)" || echo "변경 없음"
+          git pull --rebase -X theirs origin main && git push

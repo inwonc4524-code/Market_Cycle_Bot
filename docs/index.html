@@ -713,8 +713,8 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
     ["주주환원","회사가 번 돈 일부를 주식을 가진 사람(주주)에게 돌려주는 거예요."]
   ];
 
-  const PERIODS=[{k:"d1",l:"1일"},{k:"q",l:"분기별"},{k:"w1",l:"1주일"},{k:"m1",l:"1달"},{k:"m6",l:"6개월"},{y:1},{y:3},{y:5},{y:10},{y:20},{y:30},{y:50},{y:100}];
-  let mode="kr", qSel=null, per=PERIODS[0], years=20, hiKey=null;   // 처음 열면 1일부터 보여줘요
+  const PERIODS=[{k:"q",l:"분기별"},{k:"d1",l:"1일"},{k:"w1",l:"1주일"},{k:"m1",l:"1달"},{k:"m6",l:"6개월"},{y:1},{y:3},{y:5},{y:10},{y:20},{y:30},{y:50},{y:100}];
+  let mode="kr", qSel=null, per=PERIODS[1], years=20, hiKey=null;   // 처음 열면 1일부터 보여줘요
 
   const $=s=>document.querySelector(s);
   const esc=s=>String(s);

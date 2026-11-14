@@ -873,16 +873,17 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
   const qPartial=k=>ORDER.some(m=>{const q=qInfo(m,k); return q&&q.partial;});
   function renderQuarter(box){
     const ks=quarterKeys();
-    if(!ks.length){ $("#recentTitle").textContent="분기별 이야기"; box.innerHTML=`<p class="foot">분기 데이터를 불러오는 중이에요.</p>`; return; }
+    if(!ks.length){ $("#recentTitle").textContent="분기별 이야기"; box.innerHTML=`<p class="foot">분기 데이터를 아직 못 받았어요. 잠시 뒤 탭을 다시 눌러 주세요.</p>`; return; }
     if(!qSel||!ks.includes(qSel)){ const done=ks.filter(k=>!qPartial(k)); qSel=(done.length?done:ks)[(done.length?done:ks).length-1]; }
     const qs=`<div class="mixtabs qtabs">${ks.map(k=>`<button class="chip qt${k===qSel?" on":""}" data-q="${k}">${qLabel(k).replace(/^\d+년 /,"")}${qPartial(k)?" (진행 중)":""}</button>`).join("")}</div>`;
     const tag=DATA&&DATA.demo?" · ⚠️ 가짜 데이터":"";
     if(mode==="all"){
       $("#recentTitle").textContent=`🌏 ${qLabel(qSel)} 동안 일곱 시장은?`;
-      let html=qs+`<div class="calcbox"><div class="calchead">🤖 데이터로 계산한 분기 성적 <small>${qPartial(qSel)?"아직 진행 중인 분기 · 오늘까지":"분기 마지막 장 마감 기준"}${tag}</small></div><div class="tblwrap"><table class="cmp"><thead><tr><th>시장</th><th>지수</th><th>1등 / 꼴찌 업종</th></tr></thead><tbody>`;
+      let html=qs;
+      if(ORDER.some(k=>qInfo(k,qSel))){ html+=`<div class="calcbox"><div class="calchead">🤖 데이터로 계산한 분기 성적 <small>${qPartial(qSel)?"아직 진행 중인 분기 · 오늘까지":"분기 마지막 장 마감 기준"}${tag}</small></div><div class="tblwrap"><table class="cmp"><thead><tr><th>시장</th><th>지수</th><th>1등 / 꼴찌 업종</th></tr></thead><tbody>`;
       ORDER.forEach(k=>{const q=qInfo(k,qSel); if(!q) return; const t=q.rank&&q.rank[0], b=q.rank&&q.rank[q.rank.length-1];
         html+=`<tr class="go" data-k="${k}"><td>${MK[k].f} ${MK[k].n}</td><td><span class="chg ${q.bench>=0?"up":"down"}">${pc(q.bench)}</span></td><td>${t?`🦸 ${t.emoji} ${t.name} ${pc(t.ret)}<br>😓 ${b.emoji} ${b.name} ${pc(b.ret)}`:"—"}</td></tr>`;});
-      html+=`</tbody></table></div></div>`;
+      html+=`</tbody></table></div></div>`; }
       const st=ORDER.filter(k=>R[k]&&R[k].q&&R[k].q[qSel]);
       if(st.length){
         html+=`<h4 class="storyhead">📰 사람이 정리한 분기 이야기</h4><div class="tblwrap"><table class="cmp"><thead><tr><th>시장</th><th>변화</th><th>무슨 일?</th></tr></thead><tbody>`;
@@ -900,7 +901,7 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
         const md=DATA.markets[mode];
         html+=`<div class="calcbox"><div class="calchead">🤖 데이터로 계산한 결과 <small>${q.start} 마감 → ${q.end} 마감${q.partial?" (진행 중)":""}${tag}</small></div>`;
         if(q.text) html+=`<div class="scorebox"><div><div class="idx">${md.bench_name}</div><div class="line">${q.label} 동안 · 업종 평균 ${pc(q.ew)}</div></div><div class="chg big ${q.bench>=0?"up":"down"}">${pc(q.bench)}</div></div>
-          <p class="ct">🦸 ${q.text.hero}</p><p class="ct">📊 ${q.text.breadth}</p><p class="ct">😓 ${q.text.worst}</p><h4 class="sub4">${q.label} 업종 성적표</h4>${bars(q.rank)}${q.skipped&&q.skipped.length?`<p class="foot">🔎 자동 검사에서 이번엔 뺀 업종: ${q.skipped.join(", ")}</p>`:""}`;
+          <p class="ct">🦸 ${q.text.hero}</p><p class="ct">📊 ${q.text.breadth}</p><p class="ct">😓 ${q.text.worst}</p><h4 class="sub4">${q.label} 업종 성적표</h4>${bars(q.rank)}${q.skipped&&q.skipped.length?`<p class="foot">🔎 자동 검사에서 이번엔 뺀 업종: ${q.skipped.join(", ")}</p>`:""}${q.odd_dates&&q.odd_dates.length?`<p class="foot">📅 지수와 날짜가 조금 다른 값으로 계산한 업종: ${q.odd_dates.join(", ")}</p>`:""}`;
         else html+=`<p class="ct">${q.note||"계산할 데이터가 아직 부족해요."}</p>`;
         html+=`</div>`;
       }

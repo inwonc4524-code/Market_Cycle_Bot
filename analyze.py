@@ -51,8 +51,8 @@ WINDOWS = [  # (키, 이름, 거래일 수)
     ("y10", "10년", 2520), ("y20", "20년", 5040),
 ]
 LEAD_DAYS = 126     # 바통 판단: 최근 6개월 성적 1등
-SHORT_CHECK = {"d1": 0.30, "w1": 0.60}
-QUARTER_CHECK = 3.0   # 분기: +300% 넘거나 -90% 넘게 움직인 업종은 데이터 오류로 보고 빼기   # 1일·1주일에 이보다 크게 움직이면 데이터 오류로 보고 빼기
+SHORT_CHECK = {"d1": 0.30, "w1": 0.60}   # 1일·1주일에 이보다 크게 움직이면 데이터 오류로 보고 빼기
+QUARTER_CHECK = 3.0   # 분기: +300% 넘거나 -90% 넘게 움직인 업종은 데이터 오류로 보고 빼기
 JOIN_WAIT = 60                 # 묶음에 새 회사를 넣기까지 기다리는 거래일 수
 MIN_HOLD = 3        # 3달 이상 1등을 지켜야 '바통을 잡았다'고 봐요 (잠깐 1등은 무시)
 MIN_SECTORS = 3     # 업종이 3개 이상 있을 때부터 계산
@@ -148,11 +148,12 @@ CLOSE_AT = {"kr": ("Asia/Seoul", 15, 30), "jp": ("Asia/Tokyo", 15, 30), "tw": ("
             "us": ("America/New_York", 16, 0)}
 
 
-def drop_spikes(s, jump=1.6, back=0.2, max_days=30):
+def drop_spikes(s, jump=3.0, back=0.1, max_days=30):
     """갑자기 크게 튀었다가 며칠(최대 30거래일) 안에 원래 값으로 돌아오는 구간(데이터 오류)을 빼요.
     예) 일본 종합상사 ETF(1629.T) 2026-03-31 무렵 값이 평소의 약 1/400로 들어와 분기 수익률이 -99.8%·+44,000%로 나왔어요.
-    조건: 하루에 60% 넘게 튄 뒤, 30거래일 안에 다시 반대로 60% 넘게 튀어서 튀기 전 값과 20% 안쪽으로 돌아올 때 그 사이를 빼요.
-    (중국·대만은 하루 가격제한폭이 있고, 지수·ETF가 하루 60% 넘게 움직였다가 그대로 돌아오는 일은 실제로는 없어요)
+    조건: 하루에 3배 넘게 오르거나 1/3 아래로(-67%) 떨어진 뒤, 30거래일 안에 다시 반대로 그만큼 튀어서
+    튀기 전 값과 10% 안쪽으로 돌아올 때 그 사이를 빼요. (진짜 폭락·급등은 이렇게 크게 튀었다가 딱 제자리로 돌아오지 않아요.
+    처음엔 60%·20% 기준이었는데, 검증 때 '-40% 폭락 뒤 회복' 같은 진짜 움직임까지 지울 수 있다고 나와서 더 엄격하게 바꿈)
     돌려주는 값: (고친 가격, 뺀 날짜 목록)"""
     x = s.dropna()
     if len(x) < 3:
@@ -625,6 +626,17 @@ def quarter_list(last):
     return out
 
 
+def quarter_done(market, last, qe):
+    """그 분기가 끝났나? 지수 마지막 날이 분기 마지막 날이면 끝. 아니면 그 나라 시간으로 분기 마지막 날 장 마감(+10분)이 지났는지 봐요.
+    (한국 시간으로만 보면 1/1 새벽엔 미국 12/31 장이 아직인데도 '끝남'으로 잘못 봐요 — 2026-11-15 검증에서 찾음)"""
+    if last >= qe:
+        return True
+    from zoneinfo import ZoneInfo
+    tz, hh, mm = CLOSE_AT.get(market, ("Asia/Seoul", 16, 0))
+    now = datetime.now(ZoneInfo(tz)).replace(tzinfo=None)
+    return now >= qe + pd.Timedelta(hours=hh, minutes=mm + 10)
+
+
 def quarter_table(market, sectors, prices, bench):
     """분기별 성적: 앞 분기 마지막 장 마감 → 그 분기 마지막 장 마감(진행 중이면 오늘까지)."""
     b_all = bench.dropna()
@@ -640,14 +652,20 @@ def quarter_table(market, sectors, prices, bench):
             continue
         d0, d1 = b0s.index[-1], b1s.index[-1]
         b = float(b1s.iloc[-1] / b0s.iloc[-1] - 1)
-        rows, skipped = [], []
+        partial = not quarter_done(market, last, qe)
+        label = f"{q.year}년 {q.quarter}분기" + (" (지금까지)" if partial else "")
+        rows, skipped, odd_dates = [], [], []
         for sc in sectors:
             s = prices.get(sc["ticker"])
             if s is None:
                 continue
             s = s.dropna().loc[:d1]
             p0 = s.loc[:d0]
-            if not len(p0) or not len(s) or s.index[-1] <= p0.index[-1] or (d0 - p0.index[-1]).days > 10:
+            if not len(p0) or not len(s) or s.index[-1] <= p0.index[-1]:
+                continue
+            if (d0 - p0.index[-1]).days > 10:    # 분기 시작 무렵 값이 없음 (그때 아직 없던 업종이면 조용히 빼기)
+                if s.index[0] <= d0:
+                    skipped.append(f"{sc['name']}(분기 시작 값 없음)")
                 continue
             if (d1 - s.index[-1]).days > 5:      # 업종 값이 지수보다 많이 늦으면 같은 기간이 아니라서 빼기
                 skipped.append(f"{sc['name']}(아직 {s.index[-1].strftime('%m/%d')} 값)")
@@ -658,16 +676,16 @@ def quarter_table(market, sectors, prices, bench):
                 near = lambda d: ", ".join(f"{t.strftime('%m/%d')} {v:.4g}" for t, v in s.loc[d - pd.Timedelta(days=12):d + pd.Timedelta(days=12)].items())
                 print(f"  ! 분기 값이 이상한 업종: {market} {sc['ticker']} {label} {r:+.0%} | 시작 무렵 [{near(d0)}] | 끝 무렵 [{near(d1)}]")
                 continue
+            if p0.index[-1] != d0 or s.index[-1] != d1:   # 며칠 차이는 계산하되 화면에 날짜를 밝혀요
+                odd_dates.append(f"{sc['name']}({p0.index[-1].strftime('%m/%d')} → {s.index[-1].strftime('%m/%d')} 값)")
             rows.append({"key": sc["key"], "name": sc["name"], "emoji": sc["emoji"],
                          "cat": sc["cat"], "ret": round(r, 5), "rel": round(r - b, 5)})
-        # 분기 마지막 날이 휴장이어도(예: 한국·일본 12/31) 달력으로 분기가 지났으면 '끝난 분기'
-        today = pd.Timestamp(datetime.now(KST).date())
-        partial = bool(last < qe and today <= qe)
-        label = f"{q.year}년 {q.quarter}분기" + (" (지금까지)" if partial else "")
         item = {"key": f"{q.year}Q{q.quarter}", "label": label, "partial": partial,
                 "start": d0.strftime("%Y-%m-%d"), "end": d1.strftime("%Y-%m-%d"), "bench": round(b, 5)}
         if skipped:
             item["skipped"] = skipped
+        if odd_dates:
+            item["odd_dates"] = odd_dates
         if len(rows) >= MIN_SECTORS:
             rows.sort(key=lambda x: x["ret"], reverse=True)
             ew = float(np.mean([x["ret"] for x in rows]))

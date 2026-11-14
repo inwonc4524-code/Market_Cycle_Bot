@@ -900,7 +900,7 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
         const md=DATA.markets[mode];
         html+=`<div class="calcbox"><div class="calchead">🤖 데이터로 계산한 결과 <small>${q.start} 마감 → ${q.end} 마감${q.partial?" (진행 중)":""}${tag}</small></div>`;
         if(q.text) html+=`<div class="scorebox"><div><div class="idx">${md.bench_name}</div><div class="line">${q.label} 동안 · 업종 평균 ${pc(q.ew)}</div></div><div class="chg big ${q.bench>=0?"up":"down"}">${pc(q.bench)}</div></div>
-          <p class="ct">🦸 ${q.text.hero}</p><p class="ct">📊 ${q.text.breadth}</p><p class="ct">😓 ${q.text.worst}</p><h4 class="sub4">${q.label} 업종 성적표</h4>${bars(q.rank)}`;
+          <p class="ct">🦸 ${q.text.hero}</p><p class="ct">📊 ${q.text.breadth}</p><p class="ct">😓 ${q.text.worst}</p><h4 class="sub4">${q.label} 업종 성적표</h4>${bars(q.rank)}${q.skipped&&q.skipped.length?`<p class="foot">🔎 자동 검사에서 이번엔 뺀 업종: ${q.skipped.join(", ")}</p>`:""}`;
         else html+=`<p class="ct">${q.note||"계산할 데이터가 아직 부족해요."}</p>`;
         html+=`</div>`;
       }

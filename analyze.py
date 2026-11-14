@@ -51,7 +51,8 @@ WINDOWS = [  # (키, 이름, 거래일 수)
     ("y10", "10년", 2520), ("y20", "20년", 5040),
 ]
 LEAD_DAYS = 126     # 바통 판단: 최근 6개월 성적 1등
-SHORT_CHECK = {"d1": 0.30, "w1": 0.60}   # 1일·1주일에 이보다 크게 움직이면 데이터 오류로 보고 빼기
+SHORT_CHECK = {"d1": 0.30, "w1": 0.60}
+QUARTER_CHECK = 3.0   # 분기: +300% 넘거나 -90% 넘게 움직인 업종은 데이터 오류로 보고 빼기   # 1일·1주일에 이보다 크게 움직이면 데이터 오류로 보고 빼기
 JOIN_WAIT = 60                 # 묶음에 새 회사를 넣기까지 기다리는 거래일 수
 MIN_HOLD = 3        # 3달 이상 1등을 지켜야 '바통을 잡았다'고 봐요 (잠깐 1등은 무시)
 MIN_SECTORS = 3     # 업종이 3개 이상 있을 때부터 계산
@@ -145,6 +146,25 @@ def top_up_stale(out):
 CLOSE_AT = {"kr": ("Asia/Seoul", 15, 30), "jp": ("Asia/Tokyo", 15, 30), "tw": ("Asia/Taipei", 13, 30),
             "hk": ("Asia/Hong_Kong", 16, 0), "cn": ("Asia/Shanghai", 15, 0), "sg": ("Asia/Singapore", 17, 0),
             "us": ("America/New_York", 16, 0)}
+
+
+def drop_spikes(s, jump=1.6, back=0.2):
+    """하루만 크게 튀었다가 다음 날 원래대로 돌아오는 값(데이터 오류)을 빼요.
+    예) 일본 종합상사 ETF(1629.T)의 2026-03-31 값이 평소의 약 1/400로 들어와 분기 수익률이 -99.8%·+44,000%로 나왔어요.
+    조건: 전날→그날, 그날→다음 날이 둘 다 60% 넘게 반대 방향으로 움직이고, 전날과 다음 날은 20% 안쪽으로 비슷할 때.
+    돌려주는 값: (고친 가격, 뺀 날짜 목록)"""
+    x = s.dropna()
+    if len(x) < 3:
+        return s, []
+    up = x / x.shift(1)
+    dn = x.shift(-1) / x
+    same = (x.shift(-1) / x.shift(1) - 1).abs() < back
+    big = lambda r: (r > jump) | (r < 1 / jump)
+    bad = big(up) & big(dn) & ((up > 1) != (dn > 1)) & same
+    days = list(x.index[bad.fillna(False)])
+    if not days:
+        return s, []
+    return s.drop(days), days
 
 
 def trim_open_sessions(prices, sectors):
@@ -610,7 +630,7 @@ def quarter_table(market, sectors, prices, bench):
             continue
         d0, d1 = b0s.index[-1], b1s.index[-1]
         b = float(b1s.iloc[-1] / b0s.iloc[-1] - 1)
-        rows = []
+        rows, skipped = [], []
         for sc in sectors:
             s = prices.get(sc["ticker"])
             if s is None:
@@ -619,7 +639,13 @@ def quarter_table(market, sectors, prices, bench):
             p0 = s.loc[:d0]
             if not len(p0) or not len(s) or s.index[-1] <= p0.index[-1] or (d0 - p0.index[-1]).days > 10:
                 continue
+            if (d1 - s.index[-1]).days > 5:      # 업종 값이 지수보다 많이 늦으면 같은 기간이 아니라서 빼기
+                skipped.append(f"{sc['name']}(아직 {s.index[-1].strftime('%m/%d')} 값)")
+                continue
             r = float(s.iloc[-1] / p0.iloc[-1] - 1)
+            if r > QUARTER_CHECK or r < -0.9:    # 한 분기에 4배 넘게 오르거나 90% 넘게 내리면 데이터 오류로 보고 빼기
+                skipped.append(f"{sc['name']}(값이 이상해요 {r:+.0%})")
+                continue
             rows.append({"key": sc["key"], "name": sc["name"], "emoji": sc["emoji"],
                          "cat": sc["cat"], "ret": round(r, 5), "rel": round(r - b, 5)})
         # 분기 마지막 날이 휴장이어도(예: 한국·일본 12/31) 달력으로 분기가 지났으면 '끝난 분기'
@@ -628,6 +654,8 @@ def quarter_table(market, sectors, prices, bench):
         label = f"{q.year}년 {q.quarter}분기" + (" (지금까지)" if partial else "")
         item = {"key": f"{q.year}Q{q.quarter}", "label": label, "partial": partial,
                 "start": d0.strftime("%Y-%m-%d"), "end": d1.strftime("%Y-%m-%d"), "bench": round(b, 5)}
+        if skipped:
+            item["skipped"] = skipped
         if len(rows) >= MIN_SECTORS:
             rows.sort(key=lambda x: x["ret"], reverse=True)
             ew = float(np.mean([x["ret"] for x in rows]))
@@ -843,6 +871,13 @@ def main():
     prices = demo_prices(tickers) if args.demo else fetch_prices(tickers)
     if not args.demo:
         trim_open_sessions(prices, sectors)
+    spikes = {}
+    for t in list(prices):
+        fixed, days = drop_spikes(prices[t])
+        if days:
+            prices[t] = fixed
+            spikes[t] = [d.strftime("%Y-%m-%d") for d in days]
+            print(f"  ! 하루짜리 튀는 값 뺌: {t} {', '.join(spikes[t][:5])}{' …' if len(days) > 5 else ''}")
     # 데이터가 망가진 회사는 계산에서 빼기 (대시보드에 '데이터 오류로 뺀 회사'로 표시)
     bad_data = {}
     for s in sectors:
@@ -933,6 +968,7 @@ def main():
                 row["_basket_by_year"] = {str(y): round(float(v), 1) for y, v in bk.groupby(bk.index.year).last().items()}
             parts[f"{s['market']}:{s['key']}"] = row
     data["parts"] = parts
+    data["spikes"] = spikes   # 점검용: 하루짜리 튀는 값이라 뺀 날짜 (종목별)
     g = prices.get(GOLD)
     if g is not None:
         data["gold"] = {k: ret_win(g, k, n) for k, _, n in WINDOWS[:5]}

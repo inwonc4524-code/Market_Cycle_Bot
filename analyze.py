@@ -148,22 +148,32 @@ CLOSE_AT = {"kr": ("Asia/Seoul", 15, 30), "jp": ("Asia/Tokyo", 15, 30), "tw": ("
             "us": ("America/New_York", 16, 0)}
 
 
-def drop_spikes(s, jump=1.6, back=0.2):
-    """하루만 크게 튀었다가 다음 날 원래대로 돌아오는 값(데이터 오류)을 빼요.
-    예) 일본 종합상사 ETF(1629.T)의 2026-03-31 값이 평소의 약 1/400로 들어와 분기 수익률이 -99.8%·+44,000%로 나왔어요.
-    조건: 전날→그날, 그날→다음 날이 둘 다 60% 넘게 반대 방향으로 움직이고, 전날과 다음 날은 20% 안쪽으로 비슷할 때.
+def drop_spikes(s, jump=1.6, back=0.2, max_days=30):
+    """갑자기 크게 튀었다가 며칠(최대 30거래일) 안에 원래 값으로 돌아오는 구간(데이터 오류)을 빼요.
+    예) 일본 종합상사 ETF(1629.T) 2026-03-31 무렵 값이 평소의 약 1/400로 들어와 분기 수익률이 -99.8%·+44,000%로 나왔어요.
+    조건: 하루에 60% 넘게 튄 뒤, 30거래일 안에 다시 반대로 60% 넘게 튀어서 튀기 전 값과 20% 안쪽으로 돌아올 때 그 사이를 빼요.
+    (중국·대만은 하루 가격제한폭이 있고, 지수·ETF가 하루 60% 넘게 움직였다가 그대로 돌아오는 일은 실제로는 없어요)
     돌려주는 값: (고친 가격, 뺀 날짜 목록)"""
     x = s.dropna()
     if len(x) < 3:
         return s, []
-    up = x / x.shift(1)
-    dn = x.shift(-1) / x
-    same = (x.shift(-1) / x.shift(1) - 1).abs() < back
-    big = lambda r: (r > jump) | (r < 1 / jump)
-    bad = big(up) & big(dn) & ((up > 1) != (dn > 1)) & same
-    days = list(x.index[bad.fillna(False)])
-    if not days:
+    v = x.values.astype(float)
+    big = lambda r: r > jump or r < 1 / jump
+    drop = []
+    i = 1
+    while i < len(v):
+        r = v[i] / v[i - 1] if v[i - 1] else 1.0
+        if big(r):
+            for k in range(i, min(i + max_days, len(v) - 1)):
+                r2 = v[k + 1] / v[k] if v[k] else 1.0
+                if big(r2) and (r2 > 1) != (r > 1) and abs(v[k + 1] / v[i - 1] - 1) < back:
+                    drop.extend(range(i, k + 1))
+                    i = k + 1
+                    break
+        i += 1
+    if not drop:
         return s, []
+    days = list(x.index[drop])
     return s.drop(days), days
 
 

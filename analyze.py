@@ -97,7 +97,47 @@ def fetch_prices(tickers):
                 out[t] = s
         except Exception:
             pass
+    top_up_stale(out)
     return out
+
+
+def _grp(t):
+    """같은 시장끼리 묶기 (끝 글자 .KS/.T 등, 지수 ^, 없으면 미국)"""
+    if t.startswith("^"):
+        return "^"
+    return t.rsplit(".", 1)[1] if "." in t else "US"
+
+
+def top_up_stale(out):
+    """한꺼번에 받으면 야후가 몇몇 종목의 최신 날을 빼고 줄 때가 있어요
+    (2026-11-14: 미국 XLK·XLC·XLU·XLRE 가 하루 전 값이라 1일·1주 순위에서 빠짐).
+    같은 시장의 다른 종목보다 최신 날이 이른 종목은 하나씩 최근 1달을 다시 받아 가격 비율로 이어 붙여요."""
+    import yfinance as yf
+    last = {t: s.index[-1] for t, s in out.items() if len(s)}
+    newest = {}
+    for t, d in last.items():
+        g = _grp(t)
+        newest[g] = max(newest.get(g, d), d)
+    fixed, left = [], []
+    for t, d in last.items():
+        g = _grp(t)
+        if g == "^" or d >= newest[g]:
+            continue
+        try:
+            r = yf.download(t, period="1mo", auto_adjust=True, progress=False)
+            s2 = _close(r, t, False)
+            new = s2[s2.index > d]
+            if len(new) and d in s2.index and float(s2.loc[d]) > 0:
+                out[t] = pd.concat([out[t], new * (float(out[t].iloc[-1]) / float(s2.loc[d]))])
+                fixed.append(t)
+            else:
+                left.append(t)
+        except Exception:
+            left.append(t)
+    if fixed:
+        print(f"최신 날이 빠진 종목을 다시 받아 채움 {len(fixed)}: {', '.join(fixed[:20])}")
+    if left:
+        print(f"다시 받아도 최신 날이 없는 종목 {len(left)}: {', '.join(left[:20])}")
 
 
 # 장이 아직 안 끝난 나라는 오늘 가격(장 중 가격)을 빼고 어제 마감까지만 써요.

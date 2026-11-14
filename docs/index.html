@@ -713,8 +713,8 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
     ["주주환원","회사가 번 돈 일부를 주식을 가진 사람(주주)에게 돌려주는 거예요."]
   ];
 
-  const PERIODS=[{k:"d1",l:"1일"},{k:"w1",l:"1주일"},{k:"m1",l:"1달"},{k:"m6",l:"6개월"},{y:1},{y:3},{y:5},{y:10},{y:20},{y:30},{y:50},{y:100}];
-  let mode="kr", per=PERIODS[0], years=20, hiKey=null;   // 처음 열면 1일부터 보여줘요
+  const PERIODS=[{k:"d1",l:"1일"},{k:"q",l:"분기별"},{k:"w1",l:"1주일"},{k:"m1",l:"1달"},{k:"m6",l:"6개월"},{y:1},{y:3},{y:5},{y:10},{y:20},{y:30},{y:50},{y:100}];
+  let mode="kr", qSel=null, per=PERIODS[0], years=20, hiKey=null;   // 처음 열면 1일부터 보여줘요
 
   const $=s=>document.querySelector(s);
   const esc=s=>String(s);
@@ -848,8 +848,76 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
   // 날짜를 "2026년 11월 9일(월)" 모양으로
   function krDate(s){const d=new Date(s+"T00:00:00"); return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일(${"일월화수목금토"[d.getDay()]})`;}
   const br=s=>String(s==null?"":s).replace(/\n/g,"<br>");      // 이야기 안의 줄바꿈
+  // 이야기 카드 (1일·1주일·1달·6개월·분기 모두 같은 모양)
+  function storyHtml(m,r){
+    return `
+      <div class="scorebox"><div><div class="idx">${m.idx}</div><div class="line">${r.line}</div></div><div class="chg big ${sign(r.chg)}">${r.chg}</div></div>
+      ${r.summary&&r.summary.length?`<div class="story sum"><h4>📌 한눈에 보기</h4><ul>${r.summary.map(x=>`<li>${x}</li>`).join("")}</ul></div>`:""}
+      <div class="story hero"><h4>🦸 이 기간 잘 버틴 주인공</h4><b>${r.hero[0]}</b><p>${br(r.hero[1])}</p></div>
+      <div class="story winter"><h4>❄️ 겨울(위기)은 무엇이었나</h4><b>${r.winter[0]}</b><p>${br(r.winter[1])}</p></div>
+      <div class="story newbie"><h4>🌱 새 주인공이 나왔을까?</h4><b>${r.next[0]}</b><p>${br(r.next[1])}</p></div>
+      ${r.detail&&r.detail.length?`<div class="story detail"><h4>📖 이야기로 자세히</h4>${r.detail.map(([t,x])=>`<b>${t}</b><p>${br(x)}</p>`).join("")}</div>`:""}
+      <div class="timeline"><h4>📅 그동안 무슨 일이?</h4>${(r.ev||[]).map(([d,t])=>`<div class="ev"><span>${d}</span><p>${t}</p></div>`).join("")}</div>
+      ${r.words&&r.words.length?`<div class="story words"><h4>📚 어려운 말 풀이</h4><ul>${r.words.map(([w,e])=>`<li><b>${w}</b> — ${e}</li>`).join("")}</ul></div>`:""}`;
+  }
+
+  // ===== 분기별: 봇이 계산한 분기 성적 + 사람이 분기가 끝난 뒤 정리한 이야기 =====
+  function quarterKeys(){
+    const ks=new Set();
+    if(DATA&&DATA.markets) Object.values(DATA.markets).forEach(md=>(md.quarters||[]).forEach(q=>ks.add(q.key)));
+    ORDER.forEach(k=>Object.keys((R[k]&&R[k].q)||{}).forEach(x=>ks.add(x)));
+    return [...ks].sort();
+  }
+  const qLabel=k=>{const [y,q]=k.split("Q"); return `${y}년 ${q}분기`;};
+  const qInfo=(m,k)=>{const md=DATA&&DATA.markets&&DATA.markets[m]; return md&&(md.quarters||[]).find(q=>q.key===k)||null;};
+  const qPartial=k=>ORDER.some(m=>{const q=qInfo(m,k); return q&&q.partial;});
+  function renderQuarter(box){
+    const ks=quarterKeys();
+    if(!ks.length){ $("#recentTitle").textContent="분기별 이야기"; box.innerHTML=`<p class="foot">분기 데이터를 불러오는 중이에요.</p>`; return; }
+    if(!qSel||!ks.includes(qSel)){ const done=ks.filter(k=>!qPartial(k)); qSel=(done.length?done:ks)[(done.length?done:ks).length-1]; }
+    const qs=`<div class="mixtabs qtabs">${ks.map(k=>`<button class="chip qt${k===qSel?" on":""}" data-q="${k}">${qLabel(k).replace(/^\d+년 /,"")}${qPartial(k)?" (진행 중)":""}</button>`).join("")}</div>`;
+    const tag=DATA&&DATA.demo?" · ⚠️ 가짜 데이터":"";
+    if(mode==="all"){
+      $("#recentTitle").textContent=`🌏 ${qLabel(qSel)} 동안 일곱 시장은?`;
+      let html=qs+`<div class="calcbox"><div class="calchead">🤖 데이터로 계산한 분기 성적 <small>${qPartial(qSel)?"아직 진행 중인 분기 · 오늘까지":"분기 마지막 장 마감 기준"}${tag}</small></div><div class="tblwrap"><table class="cmp"><thead><tr><th>시장</th><th>지수</th><th>1등 / 꼴찌 업종</th></tr></thead><tbody>`;
+      ORDER.forEach(k=>{const q=qInfo(k,qSel); if(!q) return; const t=q.rank&&q.rank[0], b=q.rank&&q.rank[q.rank.length-1];
+        html+=`<tr class="go" data-k="${k}"><td>${MK[k].f} ${MK[k].n}</td><td><span class="chg ${q.bench>=0?"up":"down"}">${pc(q.bench)}</span></td><td>${t?`🦸 ${t.emoji} ${t.name} ${pc(t.ret)}<br>😓 ${b.emoji} ${b.name} ${pc(b.ret)}`:"—"}</td></tr>`;});
+      html+=`</tbody></table></div></div>`;
+      const st=ORDER.filter(k=>R[k]&&R[k].q&&R[k].q[qSel]);
+      if(st.length){
+        html+=`<h4 class="storyhead">📰 사람이 정리한 분기 이야기</h4><div class="tblwrap"><table class="cmp"><thead><tr><th>시장</th><th>변화</th><th>무슨 일?</th></tr></thead><tbody>`;
+        st.forEach(k=>{const r=R[k].q[qSel]; html+=`<tr class="go" data-k="${k}"><td>${MK[k].f} ${MK[k].n}<br><small>${MK[k].idx}</small></td><td><span class="chg ${sign(r.chg)}">${r.chg}</span></td><td><b>❄️ ${r.winter[0]}</b>${r.hero!==NONE?`<br>🦸 ${r.hero[0]}`:""}</td></tr>`;});
+        html+=`</tbody></table></div>`;
+      } else html+=`<p class="foot">${qPartial(qSel)?"이 분기는 아직 진행 중이에요. 분기가 끝나면(다음 분기 첫날) 사람이 정리한 이야기를 써요.":"이 분기 이야기는 아직 쓰지 않았어요."}</p>`;
+      html+=`<p class="foot">줄을 누르면 그 나라 분기 이야기를 자세히 볼 수 있어요.</p>`;
+      box.innerHTML=html;
+      box.querySelectorAll("tr.go").forEach(tr=>tr.onclick=()=>{const b=document.querySelector(`.chip.mk[data-k="${tr.dataset.k}"]`); if(b) b.click();});
+    } else {
+      const m=MK[mode], q=qInfo(mode,qSel), r=R[mode]&&R[mode].q&&R[mode].q[qSel];
+      $("#recentTitle").textContent=`${m.f} ${m.n} · ${qLabel(qSel)} 이야기`;
+      let html=qs;
+      if(q){
+        const md=DATA.markets[mode];
+        html+=`<div class="calcbox"><div class="calchead">🤖 데이터로 계산한 결과 <small>${q.start} 마감 → ${q.end} 마감${q.partial?" (진행 중)":""}${tag}</small></div>`;
+        if(q.text) html+=`<div class="scorebox"><div><div class="idx">${md.bench_name}</div><div class="line">${q.label} 동안 · 업종 평균 ${pc(q.ew)}</div></div><div class="chg big ${q.bench>=0?"up":"down"}">${pc(q.bench)}</div></div>
+          <p class="ct">🦸 ${q.text.hero}</p><p class="ct">📊 ${q.text.breadth}</p><p class="ct">😓 ${q.text.worst}</p><h4 class="sub4">${q.label} 업종 성적표</h4>${bars(q.rank)}`;
+        else html+=`<p class="ct">${q.note||"계산할 데이터가 아직 부족해요."}</p>`;
+        html+=`</div>`;
+      }
+      if(r) html+=`<h4 class="storyhead">📰 사람이 정리한 이야기 <small>(${qLabel(qSel)} 마지막 장 마감 기준)</small></h4>`+storyHtml(m,r);
+      else html+=`<p class="foot">📰 ${qPartial(qSel)?"이 분기는 아직 진행 중이에요. 분기가 끝나면(다음 분기 첫날) 사람이 정리한 이야기를 써요.":"이 분기 이야기는 아직 쓰지 않았어요."}</p>`;
+      box.innerHTML=html;
+    }
+    box.querySelectorAll(".chip.qt").forEach(b=>b.onclick=()=>{qSel=b.dataset.q; render();});
+  }
+
   function renderShort(){
     const box=$("#recent"); box.innerHTML="";
+    if(per.k==="q"){
+      const lastD=DATA&&DATA.markets?(mode==="all"?DATA.asof:(DATA.markets[mode]||{}).last_date):null;
+      $("#recentDate").textContent=lastD?`${krDate(lastD)} 마감까지 반영`:"";
+      renderQuarter(box); return;
+    }
     // 제목 옆 날짜 = 봇이 계산한 가장 최근 날짜 (없으면 사람이 정리한 이야기 날짜)
     const lastD=DATA&&DATA.markets?(mode==="all"?DATA.asof:(DATA.markets[mode]||{}).last_date):null;
     $("#recentDate").textContent=(mode==="all"&&DATA&&DATA.markets)?"나라마다 마지막 장 마감일 기준":`${krDate(lastD||STORY_DATE)} 마감 기준`;
@@ -870,15 +938,7 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
     }
     const m=MK[mode], r=R[mode][per.k];
     $("#recentTitle").textContent=`${m.f} ${m.n} · 최근 ${pl} 이야기`;
-    box.innerHTML=`
-      <div class="scorebox"><div><div class="idx">${m.idx}</div><div class="line">${r.line}</div></div><div class="chg big ${sign(r.chg)}">${r.chg}</div></div>
-      ${r.summary&&r.summary.length?`<div class="story sum"><h4>📌 한눈에 보기</h4><ul>${r.summary.map(x=>`<li>${x}</li>`).join("")}</ul></div>`:""}
-      <div class="story hero"><h4>🦸 이 기간 잘 버틴 주인공</h4><b>${r.hero[0]}</b><p>${br(r.hero[1])}</p></div>
-      <div class="story winter"><h4>❄️ 겨울(위기)은 무엇이었나</h4><b>${r.winter[0]}</b><p>${br(r.winter[1])}</p></div>
-      <div class="story newbie"><h4>🌱 새 주인공이 나왔을까?</h4><b>${r.next[0]}</b><p>${br(r.next[1])}</p></div>
-      ${r.detail&&r.detail.length?`<div class="story detail"><h4>📖 이야기로 자세히</h4>${r.detail.map(([t,x])=>`<b>${t}</b><p>${br(x)}</p>`).join("")}</div>`:""}
-      <div class="timeline"><h4>📅 그동안 무슨 일이?</h4>${r.ev.map(([d,t])=>`<div class="ev"><span>${d}</span><p>${t}</p></div>`).join("")}</div>
-      ${r.words&&r.words.length?`<div class="story words"><h4>📚 어려운 말 풀이</h4><ul>${r.words.map(([w,e])=>`<li><b>${w}</b> — ${e}</li>`).join("")}</ul></div>`:""}`;
+    box.innerHTML=storyHtml(m,r);
     const ch=calcShortHtml(mode,per.k);
     if(ch){
       const stale=storyStale(mode,per.k);

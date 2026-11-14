@@ -582,6 +582,62 @@ def window_table(market, sectors, prices, bench):
     return out
 
 
+def quarter_list(last):
+    """보여줄 분기: '가장 최근에 끝난 분기'가 있는 해의 1분기부터 지금 진행 중인 분기까지.
+    예) 2026-11 → 2026년 1·2·3분기 + 4분기(진행 중), 2027-01 → 2026년 1~4분기 + 2027년 1분기(진행 중)"""
+    cur = pd.Period(last, freq="Q")
+    done = cur - 1
+    q = pd.Period(f"{done.year}Q1", freq="Q")
+    out = []
+    while q <= cur:
+        out.append(q)
+        q += 1
+    return out
+
+
+def quarter_table(market, sectors, prices, bench):
+    """분기별 성적: 앞 분기 마지막 장 마감 → 그 분기 마지막 장 마감(진행 중이면 오늘까지)."""
+    b_all = bench.dropna()
+    if not len(b_all):
+        return []
+    last = b_all.index[-1]
+    out = []
+    for q in quarter_list(last):
+        qs, qe = q.start_time.normalize(), q.end_time.normalize()
+        b0s = b_all.loc[:qs - pd.Timedelta(days=1)]
+        b1s = b_all.loc[:qe]
+        if not len(b0s) or not len(b1s) or b1s.index[-1] < qs:
+            continue
+        d0, d1 = b0s.index[-1], b1s.index[-1]
+        b = float(b1s.iloc[-1] / b0s.iloc[-1] - 1)
+        rows = []
+        for sc in sectors:
+            s = prices.get(sc["ticker"])
+            if s is None:
+                continue
+            s = s.dropna().loc[:d1]
+            p0 = s.loc[:d0]
+            if not len(p0) or not len(s) or s.index[-1] <= p0.index[-1] or (d0 - p0.index[-1]).days > 10:
+                continue
+            r = float(s.iloc[-1] / p0.iloc[-1] - 1)
+            rows.append({"key": sc["key"], "name": sc["name"], "emoji": sc["emoji"],
+                         "cat": sc["cat"], "ret": round(r, 5), "rel": round(r - b, 5)})
+        partial = bool(last < qe)
+        label = f"{q.year}년 {q.quarter}분기" + (" (지금까지)" if partial else "")
+        item = {"key": f"{q.year}Q{q.quarter}", "label": label, "partial": partial,
+                "start": d0.strftime("%Y-%m-%d"), "end": d1.strftime("%Y-%m-%d"), "bench": round(b, 5)}
+        if len(rows) >= MIN_SECTORS:
+            rows.sort(key=lambda x: x["ret"], reverse=True)
+            ew = float(np.mean([x["ret"] for x in rows]))
+            up = sum(1 for x in rows if x["ret"] > 0)
+            item.update({"ew": round(ew, 5), "up": up, "n": len(rows), "rank": rows,
+                         "text": explain(market, label, rows, b, ew, up)})
+        else:
+            item.update({"rank": rows, "note": "이 분기를 계산할 만큼 업종 데이터가 없어요."})
+        out.append(item)
+    return out
+
+
 def explain(market, label, rows, b, ew, up):
     """숫자를 초등학생도 읽을 수 있는 문장으로."""
     bname = BENCH[market][1]
@@ -830,6 +886,11 @@ def main():
         missing = [f"{s['name']}({s['ticker']})" for s in secs if s["ticker"] not in prices]
         missing_all += missing
         wins = window_table(m, secs, prices, bench)
+        try:
+            quarters = quarter_table(m, secs, prices, bench)
+        except Exception as e:
+            print(f"{FLAG[m]} 분기 계산 실패: {e}")
+            quarters = []
         w_list, now_state = winters(bench)
         eras = baton_eras(secs, prices, bench)
         gold_local = None
@@ -848,7 +909,7 @@ def main():
         data["markets"][m] = {
             "bench_name": bname, "bench_ticker": bt,
             "last_date": bench.index[-1].strftime("%Y-%m-%d"),
-            "windows": wins, "eras": eras, "winters": w_list, "now": now_state,
+            "windows": wins, "quarters": quarters, "eras": eras, "winters": w_list, "now": now_state,
             "season": season_text(m, now_state), "missing": missing, "mix": mix,
             "cap_missing": [t for t in cap_missing if t not in bad_all and any(t in cap_list(s) for s in secs)],
             "bad_data": sorted(bad_data.get(m, [])),

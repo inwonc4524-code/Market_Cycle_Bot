@@ -449,6 +449,39 @@ def ret(s, n):
     return float(s.iloc[-1] / s.iloc[-1 - n] - 1)
 
 
+# 1주일·1달은 '거래일 개수'가 아니라 달력 날짜로 시작일을 정해요 (2026-11-14 1주일 돌아보기).
+# 휴장일이 끼면 5거래일 전이 지난주 금요일보다 더 앞(예: 싱가포르 11/9 휴장 → 11/5)이 되어
+# 뉴스의 '한 주 등락률'과 크게 달라졌어요. 이제 '마지막 날 − 7일(1달은 − 1달)' 또는 그 전 마지막 장이 시작일이에요.
+CAL_WINDOWS = {"w1": pd.DateOffset(days=7), "m1": pd.DateOffset(months=1)}
+
+
+def cal_start(s, key):
+    """달력 기준 시작일 (그날이 휴장이면 그 전 마지막 장). 없으면 None."""
+    s = s.dropna()
+    if not len(s):
+        return None
+    prior = s.loc[:s.index[-1] - CAL_WINDOWS[key]]
+    return prior.index[-1] if len(prior) else None
+
+
+def ret_from(s, start):
+    """start 날(또는 그 전 마지막 장) 마감부터 마지막 날까지 등락률."""
+    s = s.dropna()
+    if start is None or not len(s):
+        return None
+    prior = s.loc[:start]
+    if not len(prior) or s.index[-1] <= prior.index[-1]:
+        return None
+    return float(s.iloc[-1] / prior.iloc[-1] - 1)
+
+
+def ret_win(s, key, n):
+    """창(key)에 맞는 등락률: 1주일·1달은 달력 기준, 나머지는 거래일 개수."""
+    if key in CAL_WINDOWS:
+        return ret_from(s, cal_start(s, key))
+    return ret(s, n)
+
+
 def iga(word):
     """'이/가' 고르기 (받침 있으면 '이')."""
     ch = word.strip()[-1]
@@ -468,9 +501,10 @@ def pct(x, digits=1):
 def window_table(market, sectors, prices, bench):
     out = {}
     for key, label, n in WINDOWS:
-        b = ret(bench, n)
+        b = ret_win(bench, key, n)
         if b is None:
             continue
+        bstart = cal_start(bench, key) if key in CAL_WINDOWS else None
         rows = []
         skipped = []
         bend = bench.dropna().index[-1]
@@ -479,7 +513,7 @@ def window_table(market, sectors, prices, bench):
             if s is None:
                 continue
             s = s.loc[:bend]          # 지수와 같은 날까지만 비교 (지수 값이 늦게 들어온 날 대비)
-            r = ret(s, n)
+            r = ret_from(s, bstart) if bstart is not None else ret(s, n)   # 1주일·1달은 지수와 같은 시작일
             if r is None:
                 continue
             # 짧은 기간(1일·1주일) 자동 검사: 지수와 마지막 날짜가 다르거나, 하루에 너무 크게 움직이면 빼기
@@ -798,7 +832,7 @@ def main():
     data["parts"] = parts
     g = prices.get(GOLD)
     if g is not None:
-        data["gold"] = {k: ret(g, n) for k, _, n in WINDOWS[:5]}
+        data["gold"] = {k: ret_win(g, k, n) for k, _, n in WINDOWS[:5]}
     # 안전장치: 야후가 잠깐 옛날 값을 줄 때(새벽 등) 이미 받은 최신 값을 옛날 값으로 덮어쓰지 않기
     if not args.demo:
         try:

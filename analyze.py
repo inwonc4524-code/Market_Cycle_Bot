@@ -655,6 +655,8 @@ def quarter_table(market, sectors, prices, bench):
             r = float(s.iloc[-1] / p0.iloc[-1] - 1)
             if r > QUARTER_CHECK or r < -0.9:    # 한 분기에 4배 넘게 오르거나 90% 넘게 내리면 데이터 오류로 보고 빼기
                 skipped.append(f"{sc['name']}(값이 이상해요 {r:+.0%})")
+                near = lambda d: ", ".join(f"{t.strftime('%m/%d')} {v:.4g}" for t, v in s.loc[d - pd.Timedelta(days=12):d + pd.Timedelta(days=12)].items())
+                print(f"  ! 분기 값이 이상한 업종: {market} {sc['ticker']} {label} {r:+.0%} | 시작 무렵 [{near(d0)}] | 끝 무렵 [{near(d1)}]")
                 continue
             rows.append({"key": sc["key"], "name": sc["name"], "emoji": sc["emoji"],
                          "cat": sc["cat"], "ret": round(r, 5), "rel": round(r - b, 5)})

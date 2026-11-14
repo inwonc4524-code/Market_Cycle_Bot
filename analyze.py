@@ -622,7 +622,9 @@ def quarter_table(market, sectors, prices, bench):
             r = float(s.iloc[-1] / p0.iloc[-1] - 1)
             rows.append({"key": sc["key"], "name": sc["name"], "emoji": sc["emoji"],
                          "cat": sc["cat"], "ret": round(r, 5), "rel": round(r - b, 5)})
-        partial = bool(last < qe)
+        # 분기 마지막 날이 휴장이어도(예: 한국·일본 12/31) 달력으로 분기가 지났으면 '끝난 분기'
+        today = pd.Timestamp(datetime.now(KST).date())
+        partial = bool(last < qe and today <= qe)
         label = f"{q.year}년 {q.quarter}분기" + (" (지금까지)" if partial else "")
         item = {"key": f"{q.year}Q{q.quarter}", "label": label, "partial": partial,
                 "start": d0.strftime("%Y-%m-%d"), "end": d1.strftime("%Y-%m-%d"), "bench": round(b, 5)}

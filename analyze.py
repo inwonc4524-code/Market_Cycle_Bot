@@ -337,6 +337,30 @@ def fetch_raw_and_caps(tickers):
         res = list(ex.map(one, tickers))
     caps = {t: c for t, c, _, _ in res if c}
     hist = {t: (s, sp) for t, _, s, sp in res if s is not None and len(s) >= 2}
+
+    # 야후가 가끔 한두 회사의 가격·시가총액을 빼고 줘요(예: 싱가포르 양쯔장조선 BS6.SI).
+    # 그러면 링 비중이 실행마다 들쭉날쭉해지니, 빠진 회사만 하나씩 한 번 더 받아요.
+    retry = [t for t in tickers if not t.endswith("=X") and (t not in raw or t not in caps)]
+    got = 0
+    for t in retry:
+        try:
+            if t not in raw:
+                one_df = yf.download(t, period="max", auto_adjust=False, progress=False)
+                s = _close(one_df, t, False)
+                if len(s):
+                    raw[t] = s
+            if t not in caps or t not in hist:
+                _, c, sh, sp = one(t)
+                if c and t not in caps:
+                    caps[t] = c
+                if sh is not None and len(sh) >= 2 and t not in hist:
+                    hist[t] = (sh, sp)
+            if t in raw and t in caps:
+                got += 1
+        except Exception:
+            pass
+    if retry:
+        print(f"덩치 자료가 빠진 회사 다시 받기: {len(retry)}곳 중 {got}곳 채움 ({', '.join(retry[:8])})")
     return raw, caps, hist
 
 

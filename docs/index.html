@@ -250,6 +250,9 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
 </div>
 <script>
 (function(){
+  // 이 페이지 자신의 코드·모양 (새 버전이 올라왔는지 비교용)
+  const SELF_JS=(document.currentScript&&document.currentScript.textContent)||"";
+  const SELF_CSS=[...document.querySelectorAll("style")].map(s=>s.textContent).join("");
   const NOW = (()=>{const d=new Date(); return Math.max(2026.85, d.getFullYear()+(d.getMonth()+0.5)/12);})(); // 2026년 11월 초
   const CAT = {
     semi:{n:"반도체",c:"var(--semi)"}, tech:{n:"기술·인터넷",c:"var(--tech)"}, bio:{n:"바이오·소비",c:"var(--bio)"},
@@ -715,6 +718,11 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
 
   const PERIODS=[{k:"q",l:"분기별"},{k:"d1",l:"1일"},{k:"w1",l:"1주일"},{k:"m1",l:"1달"},{k:"m6",l:"6개월"},{y:1},{y:3},{y:5},{y:10},{y:20},{y:30},{y:50},{y:100}];
   let mode="kr", qSel=null, per=PERIODS[1], years=20, hiKey=null;   // 처음 열면 1일부터 보여줘요
+  // 새 버전으로 자동으로 바꿨을 때, 보고 있던 나라·기간·위치를 이어서 보여주기
+  let _restoreY=0;
+  try{ const st=JSON.parse(sessionStorage.getItem("mcb_state")||"null");
+       if(st){ sessionStorage.removeItem("mcb_state"); if(st.mode) mode=st.mode; if(PERIODS[st.per]) per=PERIODS[st.per];
+               if(st.years) years=st.years; _restoreY=st.y||0; } }catch(e){}
 
   const $=s=>document.querySelector(s);
   const esc=s=>String(s);
@@ -1214,15 +1222,28 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
     fetching=true; lastFetch=Date.now(); const v="?v="+Date.now();
     Promise.all([
       fetch("data.json"+v,{cache:"no-store"}).then(r=>r.ok?r.json():null).catch(()=>null),
-      fetch("stories.json"+v,{cache:"no-store"}).then(r=>r.ok?r.json():null).catch(()=>null)
-    ]).then(([d,s])=>{
+      fetch("stories.json"+v,{cache:"no-store"}).then(r=>r.ok?r.json():null).catch(()=>null),
+      fetch("index.html"+v,{cache:"no-store"}).then(r=>r.ok?r.text():null).catch(()=>null)
+    ]).then(([d,s,page])=>{
       fetching=false; let changed=false;
+      // 페이지 코드·모양이 바뀌었으면(새 기능·디자인) 지금 보던 곳을 기억하고 새 버전으로 바로 바꿔요
+      if(page&&SELF_JS){
+        const OPEN="<"+"script>", CLOSE="</"+"script>";   // (이 글자를 그대로 쓰면 페이지가 깨져서 나눠 씀)
+        const js=page.slice(page.lastIndexOf(OPEN)+OPEN.length, page.lastIndexOf(CLOSE));
+        const css=[...page.matchAll(/<style>([\s\S]*?)<\/style>/g)].map(m=>m[1]).join("");
+        if(js.trim()!==SELF_JS.trim()||(css&&css.trim()!==SELF_CSS.trim())){
+          if(!refresh._reloaded){ refresh._reloaded=true;
+            try{ sessionStorage.setItem("mcb_state",JSON.stringify({mode,per:PERIODS.indexOf(per),years,y:window.scrollY||0})); }catch(e){}
+            location.reload(); return; }
+        }
+      }
       if(s&&s.R){ const js=JSON.stringify(s); if(js!==refresh._s){refresh._s=js; R=s.R; STORY_DATES=s.story_dates||STORY_DATES; changed=true;} }
       if(d&&d.markets&&(!DATA||d.generated!==DATA.generated)){ DATA=d; buildCalc(); changed=true;
         if(firstData){firstData=false; document.querySelectorAll(".chip.mk").forEach(b=>{ if(d.markets[b.dataset.k]) b.textContent+=" 🤖"; });} }
       if(changed) render();
     });
   }
+  if(_restoreY) setTimeout(()=>window.scrollTo(0,_restoreY),300);
   refresh(true);
   document.addEventListener("click",e=>{ if(e.target.closest&&e.target.closest(".chip")) refresh(); },true);
   document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") refresh(); });

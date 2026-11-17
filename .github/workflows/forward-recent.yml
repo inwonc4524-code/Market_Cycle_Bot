@@ -1,0 +1,26 @@
+name: 최근 알림 텔레그램으로 다시 보내기
+
+# ntfy 에 남아 있는 이 봇의 최근 알림(약 12시간치)을 텔레그램으로 한 번 더 보내요.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/forward-recent.yml
+      - forward_recent.py
+
+jobs:
+  forward:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests
+      - name: 다시 보내기
+        env:
+          MATCH_MODE: "repo"
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python forward_recent.py

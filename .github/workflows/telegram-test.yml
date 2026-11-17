@@ -1,6 +1,6 @@
 name: 텔레그램 시험 알림
 
-# 이 파일이 바뀌거나, Actions 에서 Run workflow 를 누르면 시험 알림을 한 번 보내요.
+# 이 파일이 바뀌거나, Actions 에서 Run workflow 를 누르면 시험 알림을 한 번 보내요. (봇마다 따로 대화방)
 on:
   workflow_dispatch:
   push:

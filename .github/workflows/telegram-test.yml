@@ -1,11 +1,13 @@
 name: 텔레그램 시험 알림
 
-# 이 파일이 바뀌거나, Actions 에서 Run workflow 를 누르면 시험 알림을 한 번 보내요. (봇마다 따로 대화방)
+# 이 파일이 바뀌거나, Actions 에서 Run workflow 를 누르면 텔레그램으로 시험 메시지를 보내고
+# 안 되면 이유를 화면에 보여줘요.
 on:
   workflow_dispatch:
   push:
     paths:
       - .github/workflows/telegram-test.yml
+      - telegram_test.py
 
 jobs:
   test:
@@ -16,10 +18,9 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install requests
-      - name: 시험 알림 보내기
+      - name: 텔레그램 시험
         env:
-          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          BOT_NAME: "사이클(이어달리기) 봇"
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          python -c 'import newscard, sys; ok = newscard.send(__import__("os").environ.get("NTFY_TOPIC"), "🧪 사이클(이어달리기) 봇 텔레그램 시험", newscard.tidy("이 알림이 텔레그램과 ntfy 양쪽에 보이면 연결 성공이에요!", link_hint=False), tags=["white_check_mark"]); print("텔레그램 설정:", "있음" if newscard.TG_TOKEN and newscard.TG_CHATS else "없음 (Secrets 확인)"); sys.exit(0 if ok and newscard.TG_TOKEN else 1)'
+        run: python telegram_test.py

@@ -19,6 +19,8 @@ jobs:
       - name: 새로 올라온 보고 보내기
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           for f in $(git diff --name-only HEAD~1 HEAD -- reports/ | grep '\.json$'); do
             [ -f "$f" ] && python send_report.py "$f"

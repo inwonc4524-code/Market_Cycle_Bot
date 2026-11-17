@@ -1,5 +1,5 @@
 """
-신문 카드 알림 (ntfy)
+신문 카드 알림 (ntfy + 텔레그램)
 ─────────────────────
 휴대폰 알림을 '신문 기사'처럼 보이게 해요.
   1) 제목·본문을 정리해서 보내고
@@ -235,40 +235,148 @@ def _upload(topic, png):
     return att["url"]
 
 
+# ───────────── 텔레그램 (선택) ─────────────
+# GitHub Secrets 에 TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID 가 있으면 같은 알림을 텔레그램으로도 보내요.
+# 없으면 예전처럼 ntfy 로만 보내요. 여러 명이 받으려면 TELEGRAM_CHAT_ID 에 "ID1,ID2" 처럼 쉼표로.
+TG_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+TG_CHATS = [c.strip() for c in os.environ.get("TELEGRAM_CHAT_ID", "").split(",") if c.strip()]
+
+
+def _tg_call(method, data=None, files=None, as_json=None):
+    """텔레그램에 한 번 보내기. 너무 빨리 보내서 막히면(429) 기다렸다가 한 번 더."""
+    url = f"https://api.telegram.org/bot{TG_TOKEN}/{method}"
+    for _ in range(2):
+        if as_json is not None:
+            r = requests.post(url, json=as_json, timeout=30)
+        else:
+            r = requests.post(url, data=data, files=files, timeout=30)
+        if r.status_code == 429:
+            try:
+                wait = int(r.json().get("parameters", {}).get("retry_after", 3))
+            except Exception:
+                wait = 3
+            time.sleep(min(wait, 30) + 1)
+            continue
+        return r
+    return r
+
+
+def _tg_buttons(click, actions):
+    rows, seen = [], set()
+    for a in (actions or [])[:3]:
+        u = a.get("url")
+        if a.get("action") == "view" and u and u.startswith("http") and u not in seen:
+            rows.append([{"text": "👉 " + a.get("label", "열기"), "url": u}])
+            seen.add(u)
+    if click and click.startswith("http") and click not in seen:
+        rows.append([{"text": "👉 눌러서 자세히 보기", "url": click}])
+    return {"inline_keyboard": rows} if rows else None
+
+
+def send_telegram(title, message, click=None, priority=3, actions=None, png=None):
+    """같은 알림을 텔레그램으로. 실패해도 ntfy 알림에는 영향 없어요."""
+    if not (TG_TOKEN and TG_CHATS):
+        return None
+    import html as _html
+    body_txt = message.replace("​", "").strip()
+    # ntfy 용 안내 문구는 텔레그램에선 버튼으로 대신해요
+    body_txt = re.sub(r"\n*👉 눌러서 자세히 보기\s*$", "", body_txt).strip()
+    text = f"<b>{_html.escape(title)}</b>\n\n{_html.escape(body_txt)}"
+    if len(text) > 4000:
+        text = text[:4000] + "…"
+    markup = _tg_buttons(click, actions)
+    quiet = priority <= 2
+    ok_any = False
+    for chat in TG_CHATS:
+        try:
+            if png and len(text) <= 1000:
+                # 신문 카드 그림 + 글 (한 개의 알림)
+                data = {"chat_id": chat, "caption": text, "parse_mode": "HTML",
+                        "disable_notification": str(quiet).lower()}
+                if markup:
+                    data["reply_markup"] = json.dumps(markup)
+                r = _tg_call("sendPhoto", data=data, files={"photo": ("news.png", png, "image/png")})
+            else:
+                if png:
+                    # 글이 길면 그림은 소리 없이 먼저 보내고, 글은 따로
+                    _tg_call("sendPhoto", data={"chat_id": chat, "disable_notification": "true"},
+                             files={"photo": ("news.png", png, "image/png")})
+                    time.sleep(1)
+                body = {"chat_id": chat, "text": text, "parse_mode": "HTML",
+                        "disable_web_page_preview": True, "disable_notification": quiet}
+                if markup:
+                    body["reply_markup"] = markup
+                r = _tg_call("sendMessage", as_json=body)
+                if r.status_code == 400:
+                    # 글 모양(HTML)이나 버튼이 거절되면 꾸밈 없이 다시
+                    body.pop("parse_mode", None)
+                    body.pop("reply_markup", None)
+                    body["text"] = f"{title}\n\n{body_txt}"[:4000] + (f"\n\n🔗 {click}" if click else "")
+                    r = _tg_call("sendMessage", as_json=body)
+            print("텔레그램 전송:", r.status_code)
+            if r.ok:
+                ok_any = True
+            else:
+                print("  ! 텔레그램 거절:", r.text[:200].replace(TG_TOKEN, "***"))
+        except Exception as e:
+            print("  ! 텔레그램 전송 실패:", str(e).replace(TG_TOKEN, "***")[:200])
+        time.sleep(1.1)   # 텔레그램은 한 사람에게 1초에 1개 정도까지
+    return ok_any
+
+
 def send(topic, title, message, click=None, tags=None, priority=3, actions=None, card=None):
     """
-    알림 보내기.
+    알림 보내기 (ntfy + 텔레그램이 설정돼 있으면 텔레그램도).
     card = {"paper": "이어달리기 신문", "kicker": "마감 시황", "headline": "...", "lines": [...]}
     """
-    if not topic:
+    tg_on = bool(TG_TOKEN and TG_CHATS)
+    if not topic and not tg_on:
         print("[NTFY_TOPIC 없음 — 알림 대신 화면에 출력]\n" + title + "\n" + message + "\n")
         return True
-    body = {"topic": topic, "title": title, "message": message[:3900], "priority": priority}
-    if click:
-        body["click"] = click
-    if actions:
-        body["actions"] = actions[:3]
-    if tags:
-        body["tags"] = tags
+    png = None
     if card:
         try:
             png = render(card.get("paper", ""), card.get("kicker", ""), card.get("headline", title),
                          card.get("lines", []), card.get("footer", "눌러서 대시보드에서 자세히 보기"))
-            body["attach"] = _upload(topic, png)
-            body["filename"] = "news.png"
         except Exception as e:
             print("  ! 신문 카드 그림 실패 — 글자만 보내요:", e)
-    for attempt in range(3):
+
+    ntfy_ok = False
+    if topic:
+        body = {"topic": topic, "title": title, "message": message[:3900], "priority": priority}
+        if click:
+            body["click"] = click
+        if actions:
+            body["actions"] = actions[:3]
+        if tags:
+            body["tags"] = tags
+        if png:
+            try:
+                body["attach"] = _upload(topic, png)
+                body["filename"] = "news.png"
+            except Exception as e:
+                print("  ! 신문 카드 그림 올리기 실패 — 글자만 보내요:", e)
+        for attempt in range(3):
+            try:
+                r = requests.post("https://ntfy.sh/", data=json.dumps(body).encode("utf-8"),
+                                  headers={"Content-Type": "application/json"}, timeout=20)
+                print("ntfy 전송:", r.status_code)
+                r.raise_for_status()
+                ntfy_ok = True
+                break
+            except Exception as e:
+                print(f"  ! 알림 전송 실패 ({attempt + 1}/3): {e}")
+                time.sleep(3)
+
+    tg_ok = False
+    if tg_on:
         try:
-            r = requests.post("https://ntfy.sh/", data=json.dumps(body).encode("utf-8"),
-                              headers={"Content-Type": "application/json"}, timeout=20)
-            print("ntfy 전송:", r.status_code)
-            r.raise_for_status()
-            return True
+            tg_ok = bool(send_telegram(title, message, click=click, priority=priority,
+                                       actions=actions, png=png))
         except Exception as e:
-            print(f"  ! 알림 전송 실패 ({attempt + 1}/3): {e}")
-            time.sleep(3)
-    return False
+            print("  ! 텔레그램 전송 실패:", str(e).replace(TG_TOKEN, "***")[:200])
+    # 둘 중 하나라도 도착했으면 성공으로 봐요
+    return ntfy_ok or tg_ok
 
 
 def tidy(message, link_hint=True, spaced=True):

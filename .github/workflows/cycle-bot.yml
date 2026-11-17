@@ -72,6 +72,8 @@ jobs:
       - name: 업종 계산 + 휴대폰 알림
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           NOTIFY_FOCUS: ${{ steps.plan.outputs.market }}
         run: python analyze.py ${{ ((github.event_name == 'push' && !contains(github.event.head_commit.message, '[알림]')) || steps.plan.outputs.skip == '1') && '--no-notify' || '' }}
 
@@ -85,6 +87,8 @@ jobs:
         if: github.event_name == 'schedule'
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python final_alert.py || echo "마무리 알림 확인 실패 (다음에 다시 확인해요)"
 
       - name: 대시보드 저장

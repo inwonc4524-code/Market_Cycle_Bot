@@ -294,7 +294,7 @@ def send_telegram(title, message, click=None, priority=3, actions=None, png=None
     body_txt = message.replace("​", "").strip()
     # ntfy 용 안내 문구는 텔레그램에선 버튼으로 대신해요
     body_txt = re.sub(r"\n*👉 눌러서 자세히 보기\s*$", "", body_txt).strip()
-    text = f"<b>{_html.escape(title)}</b>\n\n{_html.escape(body_txt)}"
+    text = f"<b>{_html.escape(title)}</b>" + (f"\n\n{_html.escape(body_txt)}" if body_txt else "")
     if len(text) > 4000:
         text = text[:4000] + "…"
     markup = _tg_buttons(click, actions)
@@ -337,7 +337,7 @@ def send_telegram(title, message, click=None, priority=3, actions=None, png=None
                     # 글 모양(HTML)이나 버튼이 거절되면 꾸밈 없이 다시
                     body.pop("parse_mode", None)
                     body.pop("reply_markup", None)
-                    body["text"] = f"{title}\n\n{body_txt}"[:4000] + (f"\n\n🔗 {click}" if click else "")
+                    body["text"] = f"{title}\n\n{body_txt}".strip()[:4000] + (f"\n\n🔗 {click}" if click else "")
                     r = _tg_call("sendMessage", as_json=body)
             print("텔레그램 전송:", r.status_code)
             if r.ok:
@@ -397,7 +397,7 @@ def send(topic, title, message, click=None, tags=None, priority=3, actions=None,
     tg_ok = False
     if tg_on:
         try:
-            tg_ok = bool(send_telegram(title, message, click=click, priority=priority,
+            tg_ok = bool(send_telegram(title, "", click=click, priority=priority,
                                        actions=actions, png=None))   # 텔레그램은 그림 없이 글자만 (그림은 ntfy에만)
         except Exception as e:
             print("  ! 텔레그램 전송 실패:", str(e).replace(TG_TOKEN, "***")[:200])

@@ -243,13 +243,24 @@ TG_CHATS = [c.strip() for c in os.environ.get("TELEGRAM_CHAT_ID", "").split(",")
 
 
 def _tg_call(method, data=None, files=None, as_json=None):
-    """텔레그램에 한 번 보내기. 너무 빨리 보내서 막히면(429) 기다렸다가 한 번 더."""
+    """텔레그램에 보내기.
+    - 너무 빨리 보내서 막히면(429) 기다렸다가 다시.
+    - 텔레그램 서버가 늦게 대답하거나(시간 초과) 연결이 끊기면 잠깐 쉬었다가 최대 3번까지 다시.
+      (2026-11-17: 'Read timed out (30초)'로 텔레그램만 안 온 일이 있어서 추가)"""
     url = f"https://api.telegram.org/bot{TG_TOKEN}/{method}"
-    for _ in range(2):
-        if as_json is not None:
-            r = requests.post(url, json=as_json, timeout=30)
-        else:
-            r = requests.post(url, data=data, files=files, timeout=30)
+    r, last_err = None, None
+    for attempt in range(3):
+        try:
+            # (연결 10초, 대답 60초까지 기다리기 — 그림은 올리는 데 시간이 더 걸려요)
+            if as_json is not None:
+                r = requests.post(url, json=as_json, timeout=(10, 60))
+            else:
+                r = requests.post(url, data=data, files=files, timeout=(10, 60))
+        except (requests.Timeout, requests.ConnectionError) as e:
+            last_err = e
+            print(f"  ! 텔레그램 대답 없음 ({attempt + 1}/3) — 잠깐 뒤 다시 보내요")
+            time.sleep(5 * (attempt + 1))
+            continue
         if r.status_code == 429:
             try:
                 wait = int(r.json().get("parameters", {}).get("retry_after", 3))
@@ -258,6 +269,8 @@ def _tg_call(method, data=None, files=None, as_json=None):
             time.sleep(min(wait, 30) + 1)
             continue
         return r
+    if r is None:
+        raise last_err
     return r
 
 
@@ -289,18 +302,31 @@ def send_telegram(title, message, click=None, priority=3, actions=None, png=None
     ok_any = False
     for chat in TG_CHATS:
         try:
-            if png and len(text) <= 1000:
+            r = None
+            photo = png
+            if photo and len(text) <= 1000:
                 # 신문 카드 그림 + 글 (한 개의 알림)
-                data = {"chat_id": chat, "caption": text, "parse_mode": "HTML",
-                        "disable_notification": str(quiet).lower()}
-                if markup:
-                    data["reply_markup"] = json.dumps(markup)
-                r = _tg_call("sendPhoto", data=data, files={"photo": ("news.png", png, "image/png")})
+                try:
+                    data = {"chat_id": chat, "caption": text, "parse_mode": "HTML",
+                            "disable_notification": str(quiet).lower()}
+                    if markup:
+                        data["reply_markup"] = json.dumps(markup)
+                    r = _tg_call("sendPhoto", data=data, files={"photo": ("news.png", photo, "image/png")})
+                except Exception as e:
+                    print("  ! 텔레그램 그림 전송 실패 — 글자만 보내요:", str(e).replace(TG_TOKEN, "***")[:200])
+                    r = None
+                if r is None or not r.ok:
+                    photo = None   # 그림이 안 가면 아래에서 글자만이라도 보내요
+            if r is not None and r.ok:
+                pass
             else:
-                if png:
-                    # 글이 길면 그림은 소리 없이 먼저 보내고, 글은 따로
-                    _tg_call("sendPhoto", data={"chat_id": chat, "disable_notification": "true"},
-                             files={"photo": ("news.png", png, "image/png")})
+                if photo:
+                    # 글이 길면 그림은 소리 없이 먼저 보내고, 글은 따로 (그림이 실패해도 글은 보내요)
+                    try:
+                        _tg_call("sendPhoto", data={"chat_id": chat, "disable_notification": "true"},
+                                 files={"photo": ("news.png", photo, "image/png")})
+                    except Exception as e:
+                        print("  ! 텔레그램 그림 전송 실패 — 글자만 보내요:", str(e).replace(TG_TOKEN, "***")[:200])
                     time.sleep(1)
                 body = {"chat_id": chat, "text": text, "parse_mode": "HTML",
                         "disable_web_page_preview": True, "disable_notification": quiet}

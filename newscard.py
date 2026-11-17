@@ -398,7 +398,7 @@ def send(topic, title, message, click=None, tags=None, priority=3, actions=None,
     if tg_on:
         try:
             tg_ok = bool(send_telegram(title, message, click=click, priority=priority,
-                                       actions=actions, png=png))
+                                       actions=actions, png=None))   # 텔레그램은 그림 없이 글자만 (그림은 ntfy에만)
         except Exception as e:
             print("  ! 텔레그램 전송 실패:", str(e).replace(TG_TOKEN, "***")[:200])
     # 둘 중 하나라도 도착했으면 성공으로 봐요

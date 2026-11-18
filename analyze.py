@@ -361,7 +361,44 @@ def fetch_raw_and_caps(tickers):
             pass
     if retry:
         print(f"덩치 자료가 빠진 회사 다시 받기: {len(retry)}곳 중 {got}곳 채움 ({', '.join(retry[:8])})")
+    _caps_fallback(tickers, caps)
     return raw, caps, hist
+
+
+CAPS_LAST = os.path.join(DOCS, "caps_last.json")
+
+
+def _caps_fallback(tickers, caps, max_days=10):
+    """다시 받아도 시가총액이 빠지면, 최근(10일 안)에 받아 둔 시가총액을 대신 써요.
+    (2026-11-19: 싱가포르 양쯔장조선 BS6.SI 가 하루에도 몇 번씩 빠졌다 들어와서 링 비중이 실행마다 흔들렸음.
+     바로 다시 받아도 0곳 채움 → 시가총액은 며칠 사이 크게 안 바뀌니 지난 값을 씀)"""
+    try:
+        with open(CAPS_LAST, encoding="utf-8") as f:
+            last = json.load(f)
+    except Exception:
+        last = {}
+    today = datetime.now(timezone.utc).date()
+    used = []
+    for t in tickers:
+        if t.endswith("=X") or t in caps or t not in last:
+            continue
+        try:
+            age = (today - datetime.fromisoformat(last[t]["date"]).date()).days
+        except Exception:
+            continue
+        if age <= max_days and last[t].get("cap"):
+            caps[t] = float(last[t]["cap"])
+            used.append(f"{t}({age}일 전 값)")
+    for t, c in caps.items():
+        if t in tickers and t not in [u.split("(")[0] for u in used]:
+            last[t] = {"cap": c, "date": today.isoformat()}
+    if used:
+        print("시가총액을 못 받아 최근에 받아 둔 값으로 채운 회사:", ", ".join(used))
+    try:
+        with open(CAPS_LAST, "w", encoding="utf-8") as f:
+            json.dump(last, f, ensure_ascii=False, separators=(",", ":"))
+    except Exception as e:
+        print("시가총액 기록 저장 실패:", e)
 
 
 def demo_raw_and_caps(tickers):

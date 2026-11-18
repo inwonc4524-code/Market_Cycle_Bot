@@ -360,7 +360,10 @@ def fetch_raw_and_caps(tickers):
         except Exception:
             pass
     if retry:
-        print(f"덩치 자료가 빠진 회사 다시 받기: {len(retry)}곳 중 {got}곳 채움 ({', '.join(retry[:8])})")
+        why = [f"{t}[{'가격' if t not in raw else ''}{'·' if t not in raw and t not in caps else ''}{'시가총액' if t not in caps else ''} 빠짐]"
+               for t in retry if t not in raw or t not in caps]
+        print(f"덩치 자료가 빠진 회사 다시 받기: {len(retry)}곳 중 {got}곳 채움 ({', '.join(retry[:8])})"
+              + (f" · 아직 빠진 것: {', '.join(why[:8])}" if why else ""))
     _caps_fallback(tickers, caps)
     return raw, caps, hist
 
@@ -992,6 +995,13 @@ def main():
     cap_t = sorted({t for s in sectors for t in cap_list(s)} - bad_all)
     fx_t = sorted(set(FX.values()))
     raw, caps, hist = (demo_raw_and_caps(cap_t + fx_t) if args.demo else fetch_raw_and_caps(cap_t + fx_t))
+    # 덩치용 가격(배당 반영 안 한 값)을 못 받은 회사는, 업종 계산용으로 이미 받은 가격(배당 반영)을 대신 써요.
+    # 덩치는 '지금 시가총액 × 가격 비율'이라 배당 차이는 비중에 거의 영향이 없어요. (2026-11-19 BS6.SI)
+    swap = [t for t in cap_t if t not in raw and t in prices and len(prices[t]) > 1]
+    for t in swap:
+        raw[t] = prices[t]
+    if swap:
+        print("덩치용 가격을 못 받아 업종 계산용 가격으로 대신 쓴 회사:", ", ".join(swap))
     capser = {}
     for t in cap_t:
         if t in raw:

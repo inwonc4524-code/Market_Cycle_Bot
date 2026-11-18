@@ -720,6 +720,15 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
   let mode="kr", qSel=null, per=PERIODS[1], years=20, hiKey=null;   // 처음 열면 1일부터 보여줘요
   // 새 버전으로 자동으로 바꿨을 때, 보고 있던 나라·기간·위치를 이어서 보여주기
   let _restoreY=0;
+  // 처음 열 때는 '가장 최근에 장이 끝나고 계산까지 끝난 나라'를 먼저 보여줘요 (한국 시간 기준)
+  //  · 한국: 평일 저녁 7시(봇 계산 끝) ~ 다음날 새벽 5시  · 그 밖의 시간·주말: 미국
+  function autoMode(){
+    const k=new Date(Date.now()+9*3600e3), wd=k.getUTCDay(), h=k.getUTCHours();
+    if(wd>=1&&wd<=5&&h>=19) return "kr";
+    if(wd>=2&&wd<=6&&h<5) return "kr";
+    return "us";
+  }
+  mode=autoMode();
   try{ const st=JSON.parse(sessionStorage.getItem("mcb_state")||"null");
        if(st){ sessionStorage.removeItem("mcb_state"); if(st.mode) mode=st.mode; if(PERIODS[st.per]) per=PERIODS[st.per];
                if(st.years) years=st.years; _restoreY=st.y||0; } }catch(e){}
@@ -1246,7 +1255,13 @@ h1,h2,h3,.jua{font-family:'ChosunIlboMyungjo',Georgia,"Noto Serif KR",serif;font
   if(_restoreY) setTimeout(()=>window.scrollTo(0,_restoreY),300);
   refresh(true);
   document.addEventListener("click",e=>{ if(e.target.closest&&e.target.closest(".chip")) refresh(); },true);
-  document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") refresh(); });
+  // 휴대폰에 페이지를 열어둔 채 오래(1시간 넘게) 있다가 다시 보면, 그때 맞는 나라로 다시 맞춰요
+  let _hiddenAt=0;
+  document.addEventListener("visibilitychange",()=>{
+    if(document.visibilityState==="hidden"){ _hiddenAt=Date.now(); return; }
+    if(_hiddenAt&&Date.now()-_hiddenAt>3600e3){ const m=autoMode();
+      if(m!==mode){ mode=m; hiKey=null; document.querySelectorAll(".chip.mk").forEach(c=>c.classList.toggle("on",c.dataset.k===m)); render(); } }
+    _hiddenAt=0; refresh(); });
 
 })();
 </script>

@@ -22,3 +22,4 @@
 2026-11-24 morning
 2026-11-24 evening
 2026-11-24 final
+2026-11-25 morning
